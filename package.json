@@ -1,0 +1,17 @@
+{
+  "name": "vivadarte",
+  "version": "1.0.0",
+  "main": "app.js",
+  "scripts": {
+    "start": "node app.js",
+    "dev": "nodemon app.js"
+  },
+  "dependencies": {
+    "dotenv": "^16.6.1",
+    "express": "^4.22.1",
+    "msnodesqlv8": "^5.1.8",
+    "mssql": "^12.2.1",
+    "nodemon": "^3.1.14",
+    "odbc": "^2.5.0"
+  }
+}
