@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Login - VIVADARTE</title>
+    <style>
+        body { font-family: Arial; text-align: center; margin-top: 100px; }
+        input, button { padding: 10px; margin: 5px; width: 250px; }
+        .error { color: red; }
+        .success { color: green; }
+        a { display: block; margin-top: 20px; }
+    </style>
+</head>
+<body>
+    <h1>VIVADARTE</h1>
+    <h2>Login</h2>
+    <div id="message" class="error"></div>
+    <input type="email" id="email" placeholder="Email"><br>
+    <input type="password" id="password" placeholder="Password"><br>
+    <button onclick="login()">Entrar</button>
+    <a href="/registar">Criar conta</a>
+
+    <script>
+        async function login() {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+
+            if (!email || !password) {
+                document.getElementById('message').innerText = 'Preencha todos os campos';
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    localStorage.setItem('user', JSON.stringify(data.user));
+                    
+                    // Redirecionar para página do aluno (pode alterar conforme necessidade)
+                    window.location.href = '/aluno';
+                } else {
+                    document.getElementById('message').innerText = data.error;
+                }
+            } catch (error) {
+                document.getElementById('message').innerText = 'Erro ao conectar ao servidor';
+            }
+        }
+    </script>
+</body>
+</html>

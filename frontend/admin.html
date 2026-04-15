@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Admin - VIVADARTE</title>
+    <style>
+        body { font-family: Arial; padding: 20px; }
+        table { border-collapse: collapse; width: 100%; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background: #f2f2f2; }
+        .logout { background: red; color: white; padding: 10px; text-decoration: none; display: inline-block; margin-top: 20px; }
+    </style>
+</head>
+<body>
+    <h1>Painel Admin</h1>
+    <h2>Utilizadores</h2>
+    <div id="users"></div>
+    <a href="/" class="logout">Sair</a>
+
+    <script>
+        async function carregarUsers() {
+            const response = await fetch('/api/test');
+            const data = await response.json();
+            document.getElementById('users').innerHTML = `<pre>${JSON.stringify(data, null, 2)}</pre>`;
+        }
+        carregarUsers();
+    </script>
+</body>
+</html>
