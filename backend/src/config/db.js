@@ -1,26 +1,26 @@
 const sql = require('mssql');
+require('dotenv').config();
 
-const dbConfig = {
-    server: 'localhost',          // ← Atenção: SÓ o nome do servidor, sem a instância
-    port: 1433,                   // ← A porta fixa que acabou de configurar
-    database: 'vivadarte',
+const config = {
+    server: process.env.DB_SERVER,
+    port: 1433,
+    database: process.env.DB_NAME,
+    user: process.env.DB_USER,
+    password: process.env.DB_PASSWORD,
     options: {
-        trustedConnection: true,  // Mantenha 'true' para autenticação do Windows
-        trustServerCertificate: true, // Necessário para desenvolvimento local
-        encrypt: false,           // Desligado para desenvolvimento local
-        connectTimeout: 30000,
-        enableArithAbort: true
+        encrypt: true,
+        trustServerCertificate: false
     }
 };
 
-async function conectar() {
-    try {
-        const pool = await sql.connect(dbConfig);
-        console.log('Conectado ao SQL Server com sucesso!');
-        return pool;
-    } catch (err) {
-        console.error('Erro ao conectar:', err.message);
-    }
-}
+const pool = new sql.ConnectionPool(config);
+const poolConnect = pool.connect();
 
-conectar();
+poolConnect.then(() => {
+    console.log('Base de dados Azure ligada com sucesso');
+}).catch(err => {
+    console.error('Erro:', err.message);
+    process.exit(1);
+});
+
+module.exports = { pool, poolConnect, sql };

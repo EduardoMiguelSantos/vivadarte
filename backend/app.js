@@ -1,104 +1,96 @@
 const express = require('express');
-const odbc = require('odbc');
 const path = require('path');
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
+require('dotenv').config();
+
+const { pool, poolConnect, sql } = require('./src/config/db');
 const app = express();
 
 app.use(express.json());
 app.use(express.static(path.join(__dirname, '../frontend')));
 
-// Conexão à base de dados
-const connectionString = 'Driver={ODBC Driver 17 for SQL Server};Server=localhost;Database=vivadarte;Trusted_Connection=yes;TrustServerCertificate=yes;';
-let connection;
-
-async function conectar() {
-    try {
-        connection = await odbc.connect(connectionString);
-        console.log('✅ Banco conectado');
-    } catch (err) {
-        console.error('❌ Erro:', err.message);
-    }
-}
-conectar();
-
-// ========== ROTA DE LOGIN (APENAS LOCAL) ==========
+// ========== LOGIN ==========
 app.post('/api/login', async (req, res) => {
     try {
         const { email, password } = req.body;
+        if (!email || !password)
+            return res.status(400).json({ error: 'Email e password obrigatórios' });
 
-        if (!email || !password) {
-            return res.status(400).json({ error: 'Email e password são obrigatórios' });
-        }
+        await poolConnect;
+        const result = await pool.request()
+            .input('email', sql.NVarChar, email)
+            .query('SELECT * FROM UTILIZADOR WHERE email = @email AND ativo = 1');
 
-        // Procurar na base de dados
-        const result = await connection.query(`
-            SELECT id_utilizador, nome, email 
-            FROM UTILIZADOR 
-            WHERE email = '${email}' AND password = '${password}'
-        `);
+        if (result.recordset.length === 0)
+            return res.status(401).json({ error: 'Credenciais inválidas' });
 
-        if (result.length === 0) {
-            return res.status(401).json({ error: 'Email ou password inválidos' });
-        }
+        const utilizador = result.recordset[0];
+        const passwordCorreta = await bcrypt.compare(password, utilizador.password_hash);
 
-        res.json({ 
-            success: true, 
-            message: 'Login bem sucedido!',
-            user: result[0]
-        });
+        if (!passwordCorreta)
+            return res.status(401).json({ error: 'Credenciais inválidas' });
 
-    } catch (error) {
-        res.status(500).json({ error: error.message });
+        const token = jwt.sign(
+            { id: utilizador.id_utilizador, email: utilizador.email },
+            process.env.JWT_SECRET,
+            { expiresIn: process.env.JWT_EXPIRES_IN }
+        );
+
+        res.json({ success: true, token, utilizador: {
+            id: utilizador.id_utilizador,
+            nome: utilizador.nome,
+            email: utilizador.email
+        }});
+
+    } catch (err) {
+        res.status(500).json({ error: err.message });
     }
 });
 
-// ========== ROTA PARA REGISTAR NOVO UTILIZADOR ==========
+// ========== REGISTAR ==========
 app.post('/api/registar', async (req, res) => {
     try {
         const { nome, email, password } = req.body;
+        if (!nome || !email || !password)
+            return res.status(400).json({ error: 'Todos os campos são obrigatórios' });
 
-        if (!nome || !email || !password) {
-            return res.status(400).json({ error: 'Nome, email e password são obrigatórios' });
-        }
+        await poolConnect;
 
-        // Verificar se email já existe
-        const existe = await connection.query(`SELECT * FROM UTILIZADOR WHERE email = '${email}'`);
-        
-        if (existe.length > 0) {
-            return res.status(400).json({ error: 'Email já registado' });
-        }
+        // Verifica se email já existe
+        const existe = await pool.request()
+            .input('email', sql.NVarChar, email)
+            .query('SELECT id_utilizador FROM UTILIZADOR WHERE email = @email');
 
-        // Inserir novo utilizador
-        await connection.query(`
-            INSERT INTO UTILIZADOR (nome, email, password, ativo, data_criacao)
-            VALUES ('${nome}', '${email}', '${password}', 1, GETDATE())
-        `);
+        if (existe.recordset.length > 0)
+            return res.status(409).json({ error: 'Email já registado' });
 
-        res.status(201).json({ success: true, message: 'Utilizador registado com sucesso!' });
+        const hash = await bcrypt.hash(password, 12);
 
-    } catch (error) {
-        res.status(500).json({ error: error.message });
+        await pool.request()
+            .input('nome', sql.NVarChar, nome)
+            .input('email', sql.NVarChar, email)
+            .input('hash', sql.NVarChar, hash)
+            .query('INSERT INTO UTILIZADOR (nome, email, password_hash) VALUES (@nome, @email, @hash)');
+
+        res.status(201).json({ success: true, message: 'Utilizador registado!' });
+
+    } catch (err) {
+        res.status(500).json({ error: err.message });
     }
 });
 
-// ========== ROTAS DAS PÁGINAS ==========
-app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, '../frontend/login.html'));
-});
+// ========== PÁGINAS ==========
+app.get('/', (req, res) =>
+    res.sendFile(path.join(__dirname, '../frontend/login.html')));
+app.get('/admin', (req, res) =>
+    res.sendFile(path.join(__dirname, '../frontend/admin.html')));
+app.get('/aluno', (req, res) =>
+    res.sendFile(path.join(__dirname, '../frontend/aluno.html')));
 
-app.get('/admin', (req, res) => {
-    res.sendFile(path.join(__dirname, '../frontend/admin.html'));
-});
-
-app.get('/aluno', (req, res) => {
-    res.sendFile(path.join(__dirname, '../frontend/aluno.html'));
-});
-
-app.get('/registar', (req, res) => {
-    res.sendFile(path.join(__dirname, '../frontend/registar.html'));
-});
 
 // ========== INICIAR ==========
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-    console.log(`🚀 Servidor: http://localhost:${PORT}`);
+    console.log(`Servidor: http://localhost:${PORT}`);
 });
