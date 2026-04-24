@@ -81,12 +81,12 @@ app.post('/api/registar', async (req, res) => {
 });
 
 // ========== PÁGINAS ==========
-app.get('/', (req, res) =>
-    res.sendFile(path.join(__dirname, '../frontend/login.html')));
-app.get('/admin', (req, res) =>
-    res.sendFile(path.join(__dirname, '../frontend/admin.html')));
-app.get('/aluno', (req, res) =>
-    res.sendFile(path.join(__dirname, '../frontend/aluno.html')));
+//app.get('/', (req, res) =>
+   // res.sendFile(path.join(__dirname, '../frontend/login.html')));
+//app.get('/admin', (req, res) =>
+   // res.sendFile(path.join(__dirname, '../frontend/admin.html')));
+//app.get('/aluno', (req, res) =>
+    //res.sendFile(path.join(__dirname, '../frontend/aluno.html')));
 
 
 // ========== INICIAR ==========
