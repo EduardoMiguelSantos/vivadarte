@@ -9,8 +9,8 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, '../frontend')));
 
 // ========== ROTAS API ==========
-app.use('/api/auth', require('./src/routes/authRoutes'));
-
+app.use('/api/auth', require('./src/routes/authRoutes')); 
+app.use('/api/admin', require('./src/routes/adminRoutes'));
 // ========== PÁGINAS ==========
 app.get('/', (req, res) =>
     res.sendFile(path.join(__dirname, '../frontend/login.html')));
