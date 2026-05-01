@@ -93,10 +93,10 @@ async function login(req, res, next) {
         const result = await request.query(`
             SELECT U.*, U.[password] AS password_hash, P.nome as perfil_nome
             FROM [dbo].[UTILIZADOR] U
-            JOIN [dbo].[UTILIZADOR_PERFIL] UP ON U.id_utilizador = UP.UTILIZADOR_id
-            JOIN [dbo].[PERFIL] P ON UP.PERFIL_id = P.id_perfil
+            JOIN [dbo].[UTILIZADOR_PERFIL] UP ON U.id_utilizador = UP.UTILIZADORid_utilizador
+            JOIN [dbo].[PERFIL] P ON UP.PERFILid_perfil = P.id_perfil
             WHERE U.email = @email
-              AND UP.PERFIL_id = @perfilId
+              AND UP.PERFILid_perfil = @perfilId
               AND U.ativo = 1
         `);
 

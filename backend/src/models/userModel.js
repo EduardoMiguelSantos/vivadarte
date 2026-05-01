@@ -58,8 +58,8 @@ async function getPerfisDoUtilizador(utilizadorId) {
         .query(`
             SELECT p.nome
             FROM UTILIZADOR_PERFIL up
-            INNER JOIN PERFIL p ON p.id_perfil = up.PERFIL_id
-            WHERE up.UTILIZADOR_id = @utilizadorId
+            INNER JOIN PERFIL p ON p.id_perfil = up.PERFILid_perfil
+            WHERE up.UTILIZADORid_utilizador = @utilizadorId
         `);
 
     return result.recordset.map((row) => row.nome);
@@ -87,9 +87,9 @@ async function criarUtilizador({ nome, email, passwordHash, telefone = null, per
             .input('passwordHash', sql.NVarChar(255), passwordHash)
             .input('telefone', sql.NVarChar(30), telefone)
             .query(`
-                INSERT INTO UTILIZADOR (nome, email, [password], telefone)
+                INSERT INTO UTILIZADOR (nome, email, [password], telefone, data_criacao, ativo)
                 OUTPUT INSERTED.id_utilizador, INSERTED.nome, INSERTED.email, INSERTED.ativo
-                VALUES (@nome, @email, @passwordHash, @telefone)
+                VALUES (@nome, @email, @passwordHash, @telefone, GETDATE(), 1)
             `);
 
         const utilizador = novoUtilizadorResult.recordset[0];
@@ -99,7 +99,7 @@ async function criarUtilizador({ nome, email, passwordHash, telefone = null, per
             .input('utilizadorId', sql.Int, utilizador.id_utilizador)
             .input('perfilId', sql.Int, perfilEncontrado)
             .query(`
-                INSERT INTO UTILIZADOR_PERFIL (UTILIZADOR_id, PERFIL_id)
+                INSERT INTO UTILIZADOR_PERFIL (UTILIZADORid_utilizador, PERFILid_perfil)
                 VALUES (@utilizadorId, @perfilId)
             `);
 
