@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Viva D'Arte — Login</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    <div class="login-container">
+        <div class="login-box">
+            <div class="logo">
+                <h1>Viva D'Arte</h1>
+                <p>Sistema de Gestão</p>
+            </div>
+            <div id="erro" class="alerta alerta-erro" style="display:none"></div>
+            <form id="formLogin">
+                <div class="campo">
+                    <label>Email</label>
+                    <input type="email" id="email" placeholder="email@vivadarte.pt" required>
+                </div>
+                <div class="campo">
+                    <label>Password</label>
+                    <input type="password" id="password" placeholder="••••••••" required>
+                </div>
+                <button type="submit" class="btn btn-primary btn-block" id="btnLogin">Entrar</button>
+            </form>
+            <br>
+            <center>
+                <a href="/registar" class="link">Não tens conta? Pedir acesso</a>
+            </center>
+        </div>
+    </div>
+    <script src="/js/login.js"></script>
+</body>
+</html>

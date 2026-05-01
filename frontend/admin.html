@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Viva D'Arte — Painel Admin</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    <div class="navbar">
+        <h2>Viva D'Arte</h2>
+        <div class="user-info">
+            <span id="nomeUtilizador"></span>
+            <button class="btn btn-danger" onclick="logout()">Sair</button>
+        </div>
+    </div>
+
+    <div class="pagina">
+        <h1 class="titulo-pagina">Painel de Administração</h1>
+
+        <!-- Cards resumo -->
+        <div class="cards">
+            <div class="card">
+                <div class="numero" id="totalPendentes">0</div>
+                <div class="label">Pedidos Pendentes</div>
+            </div>
+            <div class="card">
+                <div class="numero" id="totalUtilizadores">0</div>
+                <div class="label">Utilizadores Ativos</div>
+            </div>
+        </div>
+
+        <!-- Pedidos pendentes -->
+        <div class="tabela-container">
+            <div class="tabela-header">
+                <h3>Pedidos de Acesso Pendentes</h3>
+            </div>
+            <div id="mensagem" style="display:none; padding:15px;"></div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Nome</th>
+                        <th>Email</th>
+                        <th>Telefone</th>
+                        <th>Perfil</th>
+                        <th>Data Pedido</th>
+                        <th>Ações</th>
+                    </tr>
+                </thead>
+                <tbody id="tabelaPendentes">
+                    <tr><td colspan="6" class="vazio">A carregar...</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Todos os utilizadores -->
+        <div class="tabela-container">
+            <div class="tabela-header">
+                <h3>Utilizadores Ativos</h3>
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Nome</th>
+                        <th>Email</th>
+                        <th>Perfil</th>
+                        <th>Data Criação</th>
+                    </tr>
+                </thead>
+                <tbody id="tabelaUtilizadores">
+                    <tr><td colspan="4" class="vazio">A carregar...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script src="/js/admin.js"></script>
+</body>
+</html>
