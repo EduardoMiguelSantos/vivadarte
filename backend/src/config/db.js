@@ -1,26 +1,23 @@
 const sql = require('mssql');
 require('dotenv').config();
 
+const [dbServer, dbInstanceName] = (process.env.DB_SERVER || '').split('\\');
+const hasExplicitPort = !!process.env.DB_PORT;
+
 const config = {
-    server: process.env.DB_SERVER,
-    port: 1433,
+    server: dbServer || process.env.DB_SERVER,
+    port: hasExplicitPort ? parseInt(process.env.DB_PORT, 10) : undefined,
     database: process.env.DB_NAME,
     user: process.env.DB_USER,
     password: process.env.DB_PASSWORD,
     options: {
-        encrypt: true,
-        trustServerCertificate: false
+        instanceName: hasExplicitPort ? undefined : (dbInstanceName || undefined),
+        encrypt: false,
+        trustServerCertificate: true
     }
 };
 
 const pool = new sql.ConnectionPool(config);
 const poolConnect = pool.connect();
-
-poolConnect.then(() => {
-    console.log('Base de dados Azure ligada com sucesso');
-}).catch(err => {
-    console.error('Erro:', err.message);
-    process.exit(1);
-});
 
 module.exports = { pool, poolConnect, sql };

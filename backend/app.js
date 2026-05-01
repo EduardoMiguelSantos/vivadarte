@@ -1,6 +1,7 @@
 const express = require('express');
 const path = require('path');
 require('dotenv').config();
+const { poolConnect } = require('./src/config/db');
 
 const app = express();
 
@@ -32,8 +33,16 @@ app.use((req, res) => {
     res.status(404).json({ error: 'Rota não encontrada' });
 });
 
-// ========== INICIAR ==========
+// ========== INICIAR (só após BD ligada) ==========
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-    console.log(` Servidor: http://localhost:${PORT}`);
-});
+poolConnect
+    .then(() => {
+        console.log('Base de dados ligada com sucesso');
+        app.listen(PORT, () => {
+            console.log(` Servidor: http://localhost:${PORT}`);
+        });
+    })
+    .catch((err) => {
+        console.error('Erro:', err.message);
+        process.exit(1);
+    });

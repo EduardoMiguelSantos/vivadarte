@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { listarPendentes, aprovar, rejeitar } = require('../controllers/adminController');
+const { listarPendentes, aprovar, rejeitar, listarUtilizadores } = require('../controllers/adminController');
 const { autenticar, autorizar } = require('../middlewares/auth');
 
 router.use(autenticar);

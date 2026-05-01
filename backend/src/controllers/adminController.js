@@ -68,4 +68,30 @@ async function rejeitar(req, res) {
     
 }
 
-module.exports = { listarPendentes, aprovar, rejeitar };
+// GET /api/admin/utilizadores
+async function listarUtilizadores(req, res) {
+    try {
+        await poolConnect;
+
+        const result = await pool.request().query(`
+            SELECT
+                u.id_utilizador,
+                u.nome,
+                u.email,
+                u.telefone,
+                u.ativo,
+                u.data_criacao,
+                p.nome AS perfil
+            FROM UTILIZADOR u
+            LEFT JOIN UTILIZADOR_PERFIL up ON up.UTILIZADOR_id = u.id_utilizador
+            LEFT JOIN PERFIL p ON p.id_perfil = up.PERFIL_id
+            ORDER BY u.nome
+        `);
+
+        return res.json(result.recordset);
+    } catch (err) {
+        return res.status(500).json({ error: err.message });
+    }
+}
+
+module.exports = { listarPendentes, aprovar, rejeitar, listarUtilizadores };
