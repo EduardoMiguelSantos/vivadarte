@@ -15,8 +15,17 @@ app.post('/api/auth/register', async (req, res) => {
     const { nome, email, telefone, password, tipo } = req.body;
 
     try {
+        const regexEspecial = /[!@#$%^&*(),.?":{}|<>]/;
+        
+        if (password.length < 8 || !regexEspecial.test(password)) {
+            return res.status(400).json({ 
+                error: 'A password deve ter no mínimo 8 caracteres e incluir um caractere especial.' 
+            });
+        }
+
         const saltRounds = 10;
         const hashedPw = await bcrypt.hash(password, saltRounds);
+
         const perfilId = tipo === 'EE' ? 3 : 2;
 
         const request = pool.request();
@@ -29,7 +38,9 @@ app.post('/api/auth/register', async (req, res) => {
         const sql = `
             BEGIN TRANSACTION;
                 DECLARE @InsertedID TABLE (ID INT);
-                INSERT INTO [dbo].[UTILIZADOR] ([nome], [email], [password_hash], [telefone], [ativo], [data_criacao]) 
+
+                INSERT INTO [dbo].[UTILIZADOR] 
+                ([nome], [email], [password_hash], [telefone], [ativo], [data_criacao]) 
                 OUTPUT INSERTED.id_utilizador INTO @InsertedID
                 VALUES (@nome, @email, @password, @telefone, 1, GETDATE());
 
@@ -43,10 +54,13 @@ app.post('/api/auth/register', async (req, res) => {
 
     } catch (err) {
         console.error('ERRO NO REGISTO:', err.message);
-        
-        // Verifica se o erro é de email duplicado (UNIQUE KEY)
+
         if (err.message.includes('UNIQUE KEY') || err.message.includes('duplicate key')) {
-            return res.status(400).json({ error: 'Email já em uso !' });
+            return res.status(400).json({ error: 'Email já em uso' });
+        }
+
+        if (err.message.includes('transaction')) {
+            await pool.request().query('IF @@TRANCOUNT > 0 ROLLBACK TRANSACTION;');
         }
 
         res.status(500).json({ error: 'Erro ao gravar na base de dados.' });
@@ -60,13 +74,11 @@ app.post('/api/auth/login', async (req, res) => {
     try {
         const request = pool.request();
         
-        // Mapeamento de IDs conforme a tua tabela PERFIL (EE=3, Professor=2)
         const perfilId = tipo === 'EE' ? 3 : 2;
 
         request.input('email', email);
         request.input('perfilId', perfilId);
 
-        // A query agora verifica se o email E o perfil coincidem
         const sql = `
             SELECT U.*, P.nome as perfil_nome 
             FROM [dbo].[UTILIZADOR] U
@@ -79,21 +91,18 @@ app.post('/api/auth/login', async (req, res) => {
 
         const result = await request.query(sql);
 
-        // Se não encontrar (ou o perfil estiver errado para este email)
         if (result.recordset.length === 0) {
             return res.status(401).json({ error: 'Email ou palavra-passe incorretos.' });
         }
 
         const utilizador = result.recordset[0];
 
-        // Validar password encriptada
         const match = await bcrypt.compare(password, utilizador.password_hash);
 
         if (!match) {
             return res.status(401).json({ error: 'Email ou palavra-passe incorretos.' });
         }
 
-        // Sucesso: Retorna dados para o Frontend
         res.status(200).json({
             message: 'Sucesso',
             user: { 
