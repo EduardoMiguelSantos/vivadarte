@@ -8,7 +8,13 @@ const app = express();
 
 // ========== MIDDLEWARES ==========
 app.use(express.json());
-app.use(cors({ origin: 'http://localhost:5173' }));
+app.use(cors({
+    origin: (origin, callback) => {
+        if (!origin) return callback(null, true);
+        const allow = /^http:\/\/localhost:517\d$/.test(origin) || origin === 'http://localhost:5173';
+        return callback(allow ? null : new Error('CORS bloqueado'), allow);
+    }
+}));
 
 // ========== ROTA DE REGISTO (SQL SERVER) ==========
 app.post('/api/auth/register', async (req, res) => {
@@ -52,6 +58,7 @@ app.post('/api/auth/register', async (req, res) => {
         res.status(500).json({ error: 'Erro ao gravar na base de dados.' });
     }
 });
+app.use(errorHandler);
 
 // ========== ROTA DE LOGIN ==========
 app.post('/api/auth/login', async (req, res) => {
