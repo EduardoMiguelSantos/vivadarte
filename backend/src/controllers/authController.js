@@ -1,6 +1,7 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const userModel = require('../models/userModel');
+const { pool } = require('../config/db');
 
 const PERFIL_MAP = {
     EE: 'EE',
@@ -77,37 +78,43 @@ async function registar(req, res, next) {
 
 async function login(req, res, next) {
     try {
-        const { email, password } = req.body;
+        const { email, password, tipo } = req.body;
 
-        if (!email || !password) {
-            return res.status(400).json({ error: 'email e password são obrigatórios' });
+        if (!email || !password || !tipo) {
+            return res.status(400).json({ error: 'email, password e tipo são obrigatórios' });
         }
 
-        const utilizador = await userModel.getUtilizadorByEmail(email);
-        if (!utilizador) {
-            return res.status(401).json({ error: 'Credenciais inválidas' });
+        const perfilId = tipo === 'EE' ? 3 : 2;
+        const request = pool.request();
+
+        request.input('email', email);
+        request.input('perfilId', perfilId);
+
+        const result = await request.query(`
+            SELECT U.*, U.[password] AS password_hash, P.nome as perfil_nome
+            FROM [dbo].[UTILIZADOR] U
+            JOIN [dbo].[UTILIZADOR_PERFIL] UP ON U.id_utilizador = UP.UTILIZADORid_utilizador
+            JOIN [dbo].[PERFIL] P ON UP.PERFILid_perfil = P.id_perfil
+            WHERE U.email = @email
+              AND UP.PERFILid_perfil = @perfilId
+              AND U.ativo = 1
+        `);
+
+        if (result.recordset.length === 0) {
+            return res.status(401).json({ error: 'Email ou palavra-passe incorretos.' });
         }
 
-        if (!utilizador.ativo) {
-            return res.status(403).json({ error: 'Utilizador inativo' });
-        }
-
+        const utilizador = result.recordset[0];
         const passwordValida = await bcrypt.compare(password, utilizador.password_hash);
         if (!passwordValida) {
-            return res.status(401).json({ error: 'Credenciais inválidas' });
+            return res.status(401).json({ error: 'Email ou palavra-passe incorretos.' });
         }
 
-        const perfis = await userModel.getPerfisDoUtilizador(utilizador.id_utilizador);
-        const token = gerarToken({ ...utilizador, perfis });
-
-        return res.json({
-            mensagem: 'Login efetuado com sucesso',
-            token,
-            utilizador: {
-                id: utilizador.id_utilizador,
+        return res.status(200).json({
+            message: 'Sucesso',
+            user: {
                 nome: utilizador.nome,
-                email: utilizador.email,
-                perfis
+                perfil: utilizador.perfil_nome
             }
         });
     } catch (error) {
