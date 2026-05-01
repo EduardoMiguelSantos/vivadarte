@@ -46,7 +46,7 @@ app.post('/api/auth/register', async (req, res) => {
         
         // Verifica se o erro é de email duplicado (UNIQUE KEY)
         if (err.message.includes('UNIQUE KEY') || err.message.includes('duplicate key')) {
-            return res.status(400).json({ error: 'Email já em uso!' });
+            return res.status(400).json({ error: 'Email já em uso !' });
         }
 
         res.status(500).json({ error: 'Erro ao gravar na base de dados.' });
