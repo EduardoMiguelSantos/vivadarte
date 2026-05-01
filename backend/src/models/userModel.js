@@ -27,6 +27,30 @@ async function getUtilizadorByEmail(email) {
     return result.recordset[0] || null;
 }
 
+async function getUtilizadorParaLogin(email, perfilId) {
+    const result = await pool
+        .request()
+        .input('email', sql.NVarChar(255), email)
+        .input('perfilId', sql.Int, perfilId)
+        .query(`
+            SELECT
+                u.id_utilizador,
+                u.nome,
+                u.email,
+                u.password_hash,
+                u.ativo,
+                p.nome AS perfil_nome
+            FROM UTILIZADOR u
+            INNER JOIN UTILIZADOR_PERFIL up ON u.id_utilizador = up.UTILIZADOR_id
+            INNER JOIN PERFIL p ON p.id_perfil = up.PERFIL_id
+            WHERE u.email = @email
+              AND up.PERFIL_id = @perfilId
+              AND u.ativo = 1
+        `);
+
+    return result.recordset[0] || null;
+}
+
 async function getPerfisDoUtilizador(utilizadorId) {
     const result = await pool
         .request()
@@ -91,6 +115,7 @@ async function criarUtilizador({ nome, email, passwordHash, telefone = null, per
 module.exports = {
     getPerfilIdByNome,
     getUtilizadorByEmail,
+    getUtilizadorParaLogin,
     getPerfisDoUtilizador,
     criarUtilizador
 };
