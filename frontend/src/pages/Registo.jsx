@@ -1,18 +1,38 @@
 import React, { useState, useEffect } from 'react';
 import './LoginRegisto.css'; 
+import { authRegister } from '../services/api';
 
 export default function Registo({ irParaLogin, irParaLanding }) {
   const [tipo, setTipo] = useState('EE'); 
+  const [nome, setNome] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [erro, setErro] = useState('');
+  const [aCarregar, setACarregar] = useState(false);
 
   useEffect(() => {
     document.title = "Criar Conta | Viva D'arte";
   }, []);
   
-  const lidarComRegisto = (e) => {
-    e.preventDefault(); 
-    
-    alert("Conta criada com sucesso! Bem-vindo(a) à Viva D'arte.");
-    irParaLogin();
+  const lidarComRegisto = async (e) => {
+    e.preventDefault();
+    setErro('');
+    setACarregar(true);
+
+    try {
+      const data = await authRegister({ nome, email, password, tipo });
+
+      localStorage.setItem('token', data.token);
+      localStorage.setItem('utilizador', JSON.stringify(data.utilizador));
+      localStorage.setItem('tipoRegisto', tipo);
+
+      alert("Conta criada com sucesso! Bem-vindo(a) à Viva D'arte.");
+      irParaLanding();
+    } catch (err) {
+      setErro(err?.message || 'Não foi possível criar conta');
+    } finally {
+      setACarregar(false);
+    }
   };
 
   return (
@@ -56,20 +76,46 @@ export default function Registo({ irParaLogin, irParaLanding }) {
           <form onSubmit={lidarComRegisto}>
             <div className="input-container">
               <label>Nome Completo</label>
-              <input type="text" placeholder="Insira o seu nome" required />
+              <input
+                type="text"
+                placeholder="Insira o seu nome"
+                value={nome}
+                onChange={(e) => setNome(e.target.value)}
+                required
+              />
             </div>
 
             <div className="input-container">
               <label>Email</label>
-              <input type="email" placeholder="Insira o seu email" required />
+              <input
+                type="email"
+                placeholder="Insira o seu email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+              />
             </div>
 
             <div className="input-container">
               <label>Palavra-passe</label>
-              <input type="password" placeholder="Crie uma senha forte" required />
+              <input
+                type="password"
+                placeholder="Crie uma senha forte"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+              />
             </div>
 
-            <button type="submit" className="btn-login">Registar</button>
+            {erro && (
+              <div style={{ color: '#ff5d5d', marginTop: 10, fontSize: 14 }}>
+                {erro}
+              </div>
+            )}
+
+            <button type="submit" className="btn-login" disabled={aCarregar}>
+              {aCarregar ? 'A registar...' : 'Registar'}
+            </button>
           </form>
 
           <footer className="form-footer">
