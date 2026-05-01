@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import Landing from './pages/Landing';
-import Login from './pages/Login';
-import Registo from './pages/Registo';
+import Landing from './pages/LandingPage/Landing';
+import Login from './pages/Login-Registo/Login';
+import Registo from './pages/Login-Registo/Registo';
 
 function App() {
   const [paginaAtual, setPaginaAtual] = useState('landing');
