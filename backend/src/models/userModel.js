@@ -18,7 +18,7 @@ async function getUtilizadorByEmail(email) {
                 u.id_utilizador,
                 u.nome,
                 u.email,
-                u.password_hash,
+                u.[password] AS password_hash,
                 u.ativo
             FROM UTILIZADOR u
             WHERE u.email = @email
@@ -87,7 +87,7 @@ async function criarUtilizador({ nome, email, passwordHash, telefone = null, per
             .input('passwordHash', sql.NVarChar(255), passwordHash)
             .input('telefone', sql.NVarChar(30), telefone)
             .query(`
-                INSERT INTO UTILIZADOR (nome, email, password_hash, telefone)
+                INSERT INTO UTILIZADOR (nome, email, [password], telefone)
                 OUTPUT INSERTED.id_utilizador, INSERTED.nome, INSERTED.email, INSERTED.ativo
                 VALUES (@nome, @email, @passwordHash, @telefone)
             `);
