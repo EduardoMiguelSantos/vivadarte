@@ -33,8 +33,8 @@ async function registar(req, res, next) {
     try {
         const { nome, email, password, telefone, tipo } = req.body;
 
-        if (!nome || !email || !password || !tipo) {
-            return res.status(400).json({ error: 'nome, email, password e tipo são obrigatórios' });
+        if (!nome || !email || !password || !tipo || !telefone  ) {
+            return res.status(400).json({ error: 'nome, email, password, telefone e tipo são obrigatórios' });
         }
 
         const perfilNome = mapTipoParaPerfil(tipo);
@@ -66,6 +66,7 @@ async function registar(req, res, next) {
                 id: novoUtilizador.id_utilizador,
                 nome: novoUtilizador.nome,
                 email: novoUtilizador.email,
+                telefone: novoUtilizador.telefone,
                 perfis
             }
         });
