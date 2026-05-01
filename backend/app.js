@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 require('dotenv').config();
+
 const { poolConnect } = require('./src/config/db');
 const authRoutes = require('./src/routes/authRoutes');
 const errorHandler = require('./src/middlewares/errorHandler');
@@ -12,17 +13,15 @@ app.use(
     cors({
         origin: (origin, callback) => {
             if (!origin) return callback(null, true);
-            const allow = /^http://localhost:517\d$/.test(origin);
+            const allow = /^http:\/\/localhost:517\d$/.test(origin);
             return callback(allow ? null : new Error('CORS bloqueado'), allow);
         }
     })
 );
 
-// ========== ROTAS API ==========
 app.get('/api/health', (req, res) => {
     res.json({ ok: true });
 });
-app.use('/api/auth', require('./src/routes/authRoutes'));
 
 app.use('/api/auth', authRoutes);
 app.use(errorHandler);
