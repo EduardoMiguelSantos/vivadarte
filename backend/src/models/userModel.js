@@ -112,10 +112,26 @@ async function criarUtilizador({ nome, email, passwordHash, telefone = null, per
     }
 }
 
+async function updatePasswordByPhone(telefone, hashedPw) {
+    const { pool } = require('../config/db');
+    
+    const sql = `
+        UPDATE [dbo].[UTILIZADOR]
+        SET [password] = @hashedPw
+        WHERE [telefone] = @telefone AND [ativo] = 1
+    `;
+    
+    return pool.request()
+        .input('hashedPw', hashedPw)
+        .input('telefone', telefone)
+        .query(sql);
+}
+
 module.exports = {
     getPerfilIdByNome,
     getUtilizadorByEmail,
     getUtilizadorParaLogin,
     getPerfisDoUtilizador,
-    criarUtilizador
+    criarUtilizador,
+    updatePasswordByPhone
 };
