@@ -206,3 +206,25 @@
   font-weight: bold;
   line-height: 1; 
 }
+
+/* Link de esqueceu password posicionado à direita */
+.forgot-password-link {
+    text-align: right;
+    margin-top: 8px;
+}
+
+.forgot-password-link a {
+    font-size: 0.85rem;
+    color: #666;
+    text-decoration: none;
+    transition: color 0.3s;
+}
+
+.forgot-password-link a:hover {
+    color: #00bcd4; /* Cor de destaque que usas nos botões */
+}
+
+/* Ajuste para o formulário de recuperação não ficar muito colado */
+.form-box form {
+    margin-top: 20px;
+}

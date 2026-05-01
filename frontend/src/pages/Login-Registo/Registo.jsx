@@ -15,27 +15,41 @@ export default function Registo({ irParaLogin, irParaLanding }) {
   }, []);
   
   const lidarComRegisto = async (e) => {
-    e.preventDefault(); 
+    e.preventDefault();
+
+    // Validação de Frontend (Feedback rápido para o utilizador)
+    const regexEspecial = /[!@#$%^&*(),.?":{}|<>]/;
     
-    try {
-      const response = await fetch('http://localhost:3000/api/auth/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ nome, email, telefone, password, tipo })
-      });
-
-      const resultado = await response.json();
-
-      if (response.ok) {
-        alert("Conta criada com sucesso! ✨");
-        irParaLogin(); 
-      } else {
-        alert(resultado.error || "Não foi possível criar a conta.");
-      }
-    } catch (error) {
-      alert("Erro ao ligar ao servidor!");
+    if (password.length < 8) {
+        alert("A password é demasiado curta (mínimo 8 caracteres).");
+        return;
     }
-  };
+
+    if (!regexEspecial.test(password)) {
+        alert("A password deve incluir pelo menos um caractere especial (ex: !, @, #, $).");
+        return;
+    }
+
+    try {
+        const response = await fetch('http://localhost:3000/api/auth/register', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ nome, email, telefone, password, tipo })
+        });
+
+        const resultado = await response.json();
+
+        if (response.ok) {
+            alert("Conta criada com sucesso! ✨");
+            irParaLogin();
+        } else {
+            // Aqui ele vai mostrar "Email já em uso" ou o erro de validação do backend
+            alert(resultado.error || "Erro ao criar conta.");
+        }
+    } catch (error) {
+        alert("Erro ao ligar ao servidor!");
+    }
+};
 
   return (
     <div className="login-container">

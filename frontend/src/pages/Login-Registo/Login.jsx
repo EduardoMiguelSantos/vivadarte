@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import './LoginRegisto.css'; 
 
-export default function Login({ irParaRegisto, irParaLanding }) {
-  // Estado para o tipo de utilizador (EE por defeito, como no Registo)
-  const [tipo, setTipo] = useState('EE'); 
+export default function Login({ irParaRegisto, irParaLanding, irParaRecuperar }) {
+  const [tipo, setTipo] = useState('EE'); // 'EE' ou 'PROF'
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
@@ -18,45 +17,43 @@ export default function Login({ irParaRegisto, irParaLanding }) {
       const response = await fetch('http://localhost:3000/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        // Enviamos o tipo escolhido para o backend validar
         body: JSON.stringify({ email, password, tipo })
       });
 
       const resultado = await response.json();
 
       if (response.ok) {
-        alert(`Bem-vindo de volta!`);
         localStorage.setItem('viva_user', JSON.stringify(resultado.user));
         irParaLanding(); 
       } else {
-        // Mensagem genérica de erro conforme combinado
         alert(resultado.error || "Dados de acesso incorretos.");
       }
     } catch (error) {
-      alert("Não foi possível ligar ao servidor.");
+      alert("Erro ao ligar ao servidor.");
     }
   };
 
   return (
     <div className="login-container">
-      {/* Lado Esquerdo - Branding */}
+      <button className="voltar-landing" onClick={irParaLanding} aria-label="Voltar">
+        <span className="seta-voltar">&#8592;</span>
+      </button>
+
       <div className="left-side">
         <div className="overlay-content">
           <div className="logo-viva">VIVA D'ARTE</div>
           <h1>Bem-vindo de volta.</h1>
-          <p>Entra na tua conta para acompanhar a tua evolução na dança.</p>
+          <p>Entra na tua conta para acompanhar o percurso na dança.</p>
         </div>
       </div>
 
-      {/* Lado Direito - Formulário */}
       <div className="right-side">
         <div className="form-box">
           <header className="form-header">
             <h2>Iniciar Sessão ✨</h2>
-            <p>Escolha o seu perfil de acesso</p>
+            <p>Selecione o seu perfil</p>
           </header>
 
-          {/* Toggle de Perfil (Igual ao do Registo) */}
           <div className="user-toggle">
             <button 
               type="button"
@@ -81,7 +78,7 @@ export default function Login({ irParaRegisto, irParaLanding }) {
                 type="email" 
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="o-teu@email.com" 
+                placeholder="exemplo@email.com" 
                 required 
               />
             </div>
@@ -92,9 +89,15 @@ export default function Login({ irParaRegisto, irParaLanding }) {
                 type="password" 
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="A tua senha" 
+                placeholder="A sua senha" 
                 required 
               />
+              {/* Link de Recuperação adicionado aqui */}
+              <div className="forgot-password-link">
+                <a href="#" onClick={(e) => { e.preventDefault(); irParaRecuperar(); }}>
+                  Esqueceu-se da palavra-passe?
+                </a>
+              </div>
             </div>
 
             <button type="submit" className="btn-login">Entrar</button>
