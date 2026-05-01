@@ -13,7 +13,6 @@ export default function Login({ irParaRegisto, irParaLanding }) {
     document.title = "Iniciar Sessão | Viva D'arte";
   }, []);
 
-<<<<<<< HEAD:frontend/src/pages/Login.jsx
   const lidarComLogin = async (e) => {
     e.preventDefault();
     setErro('');
@@ -32,14 +31,6 @@ export default function Login({ irParaRegisto, irParaLanding }) {
     } finally {
       setACarregar(false);
     }
-=======
-  const lidarComLogin = (e) => {
-  e.preventDefault(); 
-
-  alert("Login efetuado com sucesso!");
-
-  irParaLanding(); 
->>>>>>> main:frontend/src/pages/Login-Registo/Login.jsx
   };
   
   return (
