@@ -21,13 +21,7 @@ export default function Registo({ irParaLogin, irParaLanding }) {
       const response = await fetch('http://localhost:3000/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          nome, 
-          email, 
-          telefone, 
-          password, 
-          tipo
-        })
+        body: JSON.stringify({ nome, email, telefone, password, tipo })
       });
 
       const resultado = await response.json();
@@ -36,7 +30,7 @@ export default function Registo({ irParaLogin, irParaLanding }) {
         alert("Conta criada com sucesso! ✨");
         irParaLogin(); 
       } else {
-        alert("Erro: " + (resultado.error || "Não foi possível criar a conta."));
+        alert(resultado.error || "Não foi possível criar a conta.");
       }
     } catch (error) {
       alert("Erro ao ligar ao servidor!");

@@ -15,12 +15,8 @@ app.post('/api/auth/register', async (req, res) => {
     const { nome, email, telefone, password, tipo } = req.body;
 
     try {
-        // 1. Encriptar a password
         const saltRounds = 10;
         const hashedPw = await bcrypt.hash(password, saltRounds);
-
-        // 2. Mapeamento de IDs conforme a tua imagem (image_3dfb2b.png)
-        // EE -> id_perfil 3 | Professor -> id_perfil 2
         const perfilId = tipo === 'EE' ? 3 : 2;
 
         const request = pool.request();
@@ -30,13 +26,10 @@ app.post('/api/auth/register', async (req, res) => {
         request.input('telefone', telefone);
         request.input('perfilId', perfilId);
 
-        // 3. Query com OUTPUT para garantir a ligação das tabelas
         const sql = `
             BEGIN TRANSACTION;
                 DECLARE @InsertedID TABLE (ID INT);
-
-                INSERT INTO [dbo].[UTILIZADOR] 
-                ([nome], [email], [password_hash], [telefone], [ativo], [data_criacao]) 
+                INSERT INTO [dbo].[UTILIZADOR] ([nome], [email], [password_hash], [telefone], [ativo], [data_criacao]) 
                 OUTPUT INSERTED.id_utilizador INTO @InsertedID
                 VALUES (@nome, @email, @password, @telefone, 1, GETDATE());
 
@@ -46,43 +39,77 @@ app.post('/api/auth/register', async (req, res) => {
         `;
 
         await request.query(sql);
-        
-        console.log(`Sucesso: Utilizador ${email} registado como Perfil ${perfilId}`);
         res.status(201).json({ message: 'Registado com sucesso!' });
 
     } catch (err) {
-        console.error('ERRO NO SQL SERVER:', err.message);
+        console.error('ERRO NO REGISTO:', err.message);
         
-        // Se houver erro, tentamos dar rollback se a transação ainda estiver aberta
-        if (err.message.includes('transaction')) {
-            await pool.request().query('IF @@TRANCOUNT > 0 ROLLBACK TRANSACTION;');
+        // Verifica se o erro é de email duplicado (UNIQUE KEY)
+        if (err.message.includes('UNIQUE KEY') || err.message.includes('duplicate key')) {
+            return res.status(400).json({ error: 'Email já em uso!' });
         }
 
-        // Resposta amigável para email duplicado
-        if (err.message.includes('UNIQUE KEY')) {
-            return res.status(400).json({ error: 'Este email já está em uso.' });
-        }
-
-        res.status(500).json({ error: 'Erro ao gravar na base de dados: ' + err.message });
+        res.status(500).json({ error: 'Erro ao gravar na base de dados.' });
     }
 });
 
-// ========== ROTA NÃO ENCONTRADA ==========
-app.use((req, res) => {
-    res.status(404).json({ error: 'Rota não encontrada' });
+// ========== ROTA DE LOGIN ==========
+app.post('/api/auth/login', async (req, res) => {
+    const { email, password, tipo } = req.body;
+
+    try {
+        const request = pool.request();
+        
+        // Mapeamento de IDs conforme a tua tabela PERFIL (EE=3, Professor=2)
+        const perfilId = tipo === 'EE' ? 3 : 2;
+
+        request.input('email', email);
+        request.input('perfilId', perfilId);
+
+        // A query agora verifica se o email E o perfil coincidem
+        const sql = `
+            SELECT U.*, P.nome as perfil_nome 
+            FROM [dbo].[UTILIZADOR] U
+            JOIN [dbo].[UTILIZADOR_PERFIL] UP ON U.id_utilizador = UP.UTILIZADOR_id
+            JOIN [dbo].[PERFIL] P ON UP.PERFIL_id = P.id_perfil
+            WHERE U.email = @email 
+              AND UP.PERFIL_id = @perfilId 
+              AND U.ativo = 1
+        `;
+
+        const result = await request.query(sql);
+
+        // Se não encontrar (ou o perfil estiver errado para este email)
+        if (result.recordset.length === 0) {
+            return res.status(401).json({ error: 'Email ou palavra-passe incorretos.' });
+        }
+
+        const utilizador = result.recordset[0];
+
+        // Validar password encriptada
+        const match = await bcrypt.compare(password, utilizador.password_hash);
+
+        if (!match) {
+            return res.status(401).json({ error: 'Email ou palavra-passe incorretos.' });
+        }
+
+        // Sucesso: Retorna dados para o Frontend
+        res.status(200).json({
+            message: 'Sucesso',
+            user: { 
+                nome: utilizador.nome, 
+                perfil: utilizador.perfil_nome 
+            }
+        });
+
+    } catch (err) {
+        console.error('ERRO LOGIN:', err.message);
+        res.status(500).json({ error: 'Erro interno no servidor.' });
+    }
 });
 
-// ========== INICIAR SERVIDOR ==========
+// ========== START SERVER ==========
 const PORT = process.env.PORT || 3000;
-
-poolConnect
-    .then(() => {
-        console.log('SQL Server ligado com sucesso');
-        app.listen(PORT, () => {
-            console.log(`Servidor a correr em: http://localhost:${PORT}`);
-        });
-    })
-    .catch((err) => {
-        console.error('Erro de ligação à base de dados:', err.message);
-        process.exit(1);
-    });
+poolConnect.then(() => {
+    app.listen(PORT, () => console.log(`Servidor a bombar em: http://localhost:${PORT}`));
+});
