@@ -22,7 +22,6 @@ app.use(
 app.get('/api/health', (req, res) => {
     res.json({ ok: true });
 });
-app.use(errorHandler);
 
 app.use('/api/auth', authRoutes);
 app.use(errorHandler);
