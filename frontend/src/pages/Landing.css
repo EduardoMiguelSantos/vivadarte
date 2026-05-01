@@ -1,0 +1,83 @@
+.landing-container {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  
+  background: linear-gradient(rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.7)), 
+              url('https://images.unsplash.com/photo-1547153760-18fc86324498?q=80&w=2070') center/cover no-repeat;
+              
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  color: white;
+  font-family: 'Poppins', sans-serif;
+}
+
+.landing-content {
+  max-width: 600px;
+  padding: 20px;
+  animation: fadeIn 1s ease-in-out; 
+}
+
+.landing-title {
+  font-size: 4rem;
+  font-weight: 800;
+  letter-spacing: 5px;
+  margin-bottom: 10px;
+}
+
+.landing-subtitle {
+  font-size: 1.2rem;
+  margin-bottom: 40px;
+  color: #e2e8f0;
+}
+
+.landing-buttons {
+  display: flex;
+  gap: 20px;
+  justify-content: center;
+}
+
+.btn-primary, .btn-secondary {
+  padding: 16px 32px;
+  font-size: 1.1rem;
+  font-weight: 600;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.btn-primary {
+  background: #6a11cb;
+  color: white;
+  border: none;
+}
+
+.btn-primary:hover {
+  background: #5a0eb3;
+  transform: translateY(-3px);
+}
+
+
+.btn-secondary {
+  background: transparent;
+  color: white;
+  border: 2px solid white;
+}
+
+.btn-secondary:hover {
+  background: white;
+  color: #111;
+  transform: translateY(-3px);
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
