@@ -91,7 +91,7 @@ async function login(req, res, next) {
         request.input('perfilId', perfilId);
 
         const result = await request.query(`
-            SELECT U.*, P.nome as perfil_nome
+            SELECT U.*, U.[password] AS password_hash, P.nome as perfil_nome
             FROM [dbo].[UTILIZADOR] U
             JOIN [dbo].[UTILIZADOR_PERFIL] UP ON U.id_utilizador = UP.UTILIZADOR_id
             JOIN [dbo].[PERFIL] P ON UP.PERFIL_id = P.id_perfil
