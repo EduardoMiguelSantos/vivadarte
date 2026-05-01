@@ -2,12 +2,8 @@ const express = require('express');
 const cors = require('cors');
 const bcrypt = require('bcrypt');
 require('dotenv').config();
-<<<<<<< HEAD
 const { poolConnect } = require('./src/config/db');
 const errorHandler = require('./src/middlewares/errorHandler');
-=======
-const { poolConnect, pool } = require('./src/config/db');
->>>>>>> main
 
 const app = express();
 
@@ -21,17 +17,11 @@ app.use(cors({
     }
 }));
 
-<<<<<<< HEAD
 // ========== ROTAS API ==========
 app.get('/api/health', (req, res) => {
     res.json({ ok: true, service: "Viva D'arte API" });
 });
 app.use('/api/auth', require('./src/routes/authRoutes'));
-=======
-// ========== ROTA DE REGISTO (SQL SERVER) ==========
-app.post('/api/auth/register', async (req, res) => {
-    const { nome, email, telefone, password, tipo } = req.body;
->>>>>>> main
 
     try {
         const regexEspecial = /[!@#$%^&*(),.?":{}|<>]/;
