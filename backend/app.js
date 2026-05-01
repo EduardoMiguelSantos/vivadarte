@@ -1,5 +1,5 @@
 const express = require('express');
-const path = require('path');
+const cors = require('cors');
 require('dotenv').config();
 const { poolConnect } = require('./src/config/db');
 
@@ -7,26 +7,11 @@ const app = express();
 
 // ========== MIDDLEWARES ==========
 app.use(express.json());
-app.use(express.static(path.join(__dirname, '../frontend')));
+app.use(cors({ origin: 'http://localhost:5173' }));
 
 // ========== ROTAS API ==========
-app.use('/api/auth', require('./src/routes/authRoutes')); 
-app.use('/api/admin', require('./src/routes/adminRoutes'));
-// ========== PÁGINAS ==========
-app.get('/', (req, res) =>
-    res.sendFile(path.join(__dirname, '../frontend/login.html')));
-
-app.get('/admin', (req, res) =>
-    res.sendFile(path.join(__dirname, '../frontend/admin.html')));
-
-app.get('/professor', (req, res) =>
-    res.sendFile(path.join(__dirname, '../frontend/professor.html')));
-
-app.get('/aluno', (req, res) =>
-    res.sendFile(path.join(__dirname, '../frontend/aluno.html')));
-
-app.get('/contabilidade', (req, res) =>
-    res.sendFile(path.join(__dirname, '../frontend/contabilidade.html')));
+//app.use('/api/auth', require('./src/routes/authRoutes')); 
+//app.use('/api/admin', require('./src/routes/adminRoutes'));
 
 // ========== ROTA NÃO ENCONTRADA ==========
 app.use((req, res) => {
@@ -39,7 +24,7 @@ poolConnect
     .then(() => {
         console.log('Base de dados ligada com sucesso');
         app.listen(PORT, () => {
-            console.log(` Servidor: http://localhost:${PORT}`);
+            console.log(`Servidor: http://localhost:${PORT}`);
         });
     })
     .catch((err) => {
