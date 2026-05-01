@@ -7,6 +7,14 @@ export default function Login({ irParaRegisto, irParaLanding }) {
   useEffect(() => {
     document.title = "Iniciar Sessão | Viva D'arte";
   }, []);
+
+  const lidarComLogin = (e) => {
+  e.preventDefault(); 
+
+  alert("Login efetuado com sucesso!");
+
+  irParaLanding(); 
+  };
   
   return (
     <div className="login-container">
@@ -46,7 +54,7 @@ export default function Login({ irParaRegisto, irParaLanding }) {
             </button>
           </div>
 
-          <form>
+          <form onSubmit={lidarComLogin}>
             <div className="input-container">
               <label>Utilizador / Email</label>
               <input type="text" placeholder="Insira o seu email" />
