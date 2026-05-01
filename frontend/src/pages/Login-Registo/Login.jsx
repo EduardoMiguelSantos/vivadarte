@@ -1,36 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import './LoginRegisto.css'; 
-import { authLogin } from '../services/api';
 
 export default function Login({ irParaRegisto, irParaLanding }) {
   const [tipo, setTipo] = useState('EE'); 
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [erro, setErro] = useState('');
-  const [aCarregar, setACarregar] = useState(false);
 
   useEffect(() => {
     document.title = "Iniciar Sessão | Viva D'arte";
   }, []);
 
-  const lidarComLogin = async (e) => {
-    e.preventDefault();
-    setErro('');
-    setACarregar(true);
+  const lidarComLogin = (e) => {
+  e.preventDefault(); 
 
-    try {
-      const data = await authLogin({ email, password });
+  alert("Login efetuado com sucesso!");
 
-      localStorage.setItem('token', data.token);
-      localStorage.setItem('utilizador', JSON.stringify(data.utilizador));
-      localStorage.setItem('tipoLogin', tipo);
-
-      irParaLanding();
-    } catch (err) {
-      setErro(err?.message || 'Não foi possível iniciar sessão');
-    } finally {
-      setACarregar(false);
-    }
+  irParaLanding(); 
   };
   
   return (
@@ -74,36 +57,16 @@ export default function Login({ irParaRegisto, irParaLanding }) {
           <form onSubmit={lidarComLogin}>
             <div className="input-container">
               <label>Utilizador / Email</label>
-              <input
-                type="email"
-                placeholder="Insira o seu email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-              />
+              <input type="text" placeholder="Insira o seu email" />
             </div>
 
             <div className="input-container">
               <label>Palavra-passe</label>
-              <input
-                type="password"
-                placeholder="••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-              />
+              <input type="password" placeholder="••••••••" />
               <a href="#" className="forgot-text">Esqueceu-se da senha?</a>
             </div>
 
-            {erro && (
-              <div style={{ color: '#ff5d5d', marginTop: 10, fontSize: 14 }}>
-                {erro}
-              </div>
-            )}
-
-            <button type="submit" className="btn-login" disabled={aCarregar}>
-              {aCarregar ? 'A entrar...' : 'Entrar'}
-            </button>
+            <button type="submit" className="btn-login">Entrar</button>
           </form>
 
           <footer className="form-footer">
