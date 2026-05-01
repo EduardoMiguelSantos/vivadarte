@@ -1,18 +1,24 @@
 const express = require('express');
 const cors = require('cors');
-const bcrypt = require('bcrypt');
 require('dotenv').config();
+<<<<<<< HEAD
 <<<<<<< HEAD
 const { poolConnect } = require('./src/config/db');
 const errorHandler = require('./src/middlewares/errorHandler');
 =======
 const { poolConnect, pool } = require('./src/config/db');
 >>>>>>> main
+=======
+
+const { poolConnect } = require('./src/config/db');
+const authRoutes = require('./src/routes/authRoutes');
+const errorHandler = require('./src/middlewares/errorHandler');
+>>>>>>> main
 
 const app = express();
 
-// ========== MIDDLEWARES ==========
 app.use(express.json());
+<<<<<<< HEAD
 app.use(cors({
     origin: (origin, callback) => {
         if (!origin) return callback(null, true);
@@ -40,53 +46,26 @@ app.post('/api/auth/register', async (req, res) => {
             return res.status(400).json({ 
                 error: 'A password deve ter no mínimo 8 caracteres e incluir um caractere especial.' 
             });
+=======
+app.use(
+    cors({
+        origin: (origin, callback) => {
+            if (!origin) return callback(null, true);
+            const allow = /^http:\/\/localhost:517\d$/.test(origin);
+            return callback(allow ? null : new Error('CORS bloqueado'), allow);
+>>>>>>> main
         }
+    })
+);
 
-        const saltRounds = 10;
-        const hashedPw = await bcrypt.hash(password, saltRounds);
-
-        const perfilId = tipo === 'EE' ? 3 : 2;
-
-        const request = pool.request();
-        request.input('nome', nome);
-        request.input('email', email);
-        request.input('password', hashedPw);
-        request.input('telefone', telefone);
-        request.input('perfilId', perfilId);
-
-        const sql = `
-            BEGIN TRANSACTION;
-                DECLARE @InsertedID TABLE (ID INT);
-
-                INSERT INTO [dbo].[UTILIZADOR] 
-                ([nome], [email], [password_hash], [telefone], [ativo], [data_criacao]) 
-                OUTPUT INSERTED.id_utilizador INTO @InsertedID
-                VALUES (@nome, @email, @password, @telefone, 1, GETDATE());
-
-                INSERT INTO [dbo].[UTILIZADOR_PERFIL] ([UTILIZADOR_id], [PERFIL_id])
-                SELECT ID, @perfilId FROM @InsertedID;
-            COMMIT;
-        `;
-
-        await request.query(sql);
-        res.status(201).json({ message: 'Registado com sucesso!' });
-
-    } catch (err) {
-        console.error('ERRO NO REGISTO:', err.message);
-
-        if (err.message.includes('UNIQUE KEY') || err.message.includes('duplicate key')) {
-            return res.status(400).json({ error: 'Email já em uso' });
-        }
-
-        if (err.message.includes('transaction')) {
-            await pool.request().query('IF @@TRANCOUNT > 0 ROLLBACK TRANSACTION;');
-        }
-
-        res.status(500).json({ error: 'Erro ao gravar na base de dados.' });
-    }
+app.get('/api/health', (req, res) => {
+    res.json({ ok: true });
 });
+
+app.use('/api/auth', authRoutes);
 app.use(errorHandler);
 
+<<<<<<< HEAD
 // ========== ROTA DE LOGIN ==========
 app.post('/api/auth/login', async (req, res) => {
     const { email, password, tipo } = req.body;
@@ -139,7 +118,16 @@ app.post('/api/auth/login', async (req, res) => {
 app.use(errorHandler);
 
 // ========== START SERVER ==========
+=======
+>>>>>>> main
 const PORT = process.env.PORT || 3000;
-poolConnect.then(() => {
-    app.listen(PORT, () => console.log(`Servidor a bombar em: http://localhost:${PORT}`));
-});
+poolConnect
+    .then(() => {
+        app.listen(PORT, () => {
+            console.log(`Servidor a bombar em: http://localhost:${PORT}`);
+        });
+    })
+    .catch((error) => {
+        console.error('Erro ao ligar a BD:', error.message);
+        process.exit(1);
+    });
