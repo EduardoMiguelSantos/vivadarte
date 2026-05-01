@@ -14,6 +14,7 @@ export default function Registo({ irParaLogin, irParaLanding }) {
     document.title = "Criar Conta | Viva D'arte";
   }, []);
   
+<<<<<<< HEAD:frontend/src/pages/Registo.jsx
   const lidarComRegisto = async (e) => {
     e.preventDefault();
     setErro('');
@@ -33,12 +34,21 @@ export default function Registo({ irParaLogin, irParaLanding }) {
     } finally {
       setACarregar(false);
     }
+=======
+  const lidarComRegisto = (e) => {
+    e.preventDefault(); 
+    
+    // Confirmação simples
+    alert("Conta criada com sucesso!");
+    
+    // Redireciona logo para o Login
+    irParaLogin();
+>>>>>>> main:frontend/src/pages/Login-Registo/Registo.jsx
   };
 
   return (
     <div className="login-container">
       
-      {}
       <button className="voltar-landing" onClick={irParaLanding} aria-label="Voltar">
         <span className="seta-voltar">&#8592;</span>
       </button>
@@ -46,8 +56,8 @@ export default function Registo({ irParaLogin, irParaLanding }) {
       <div className="left-side">
         <div className="overlay-content">
           <div className="logo-viva">VIVA D'ARTE</div>
-          <h1>Junta-te à nossa comunidade.</h1>
-          <p>Dá o primeiro passo e cria a tua conta para gerir todo o teu percurso.</p>
+          <h1>Junta-te à nossa família.</h1>
+          <p>Dá o primeiro passo e cria a tua conta para gerir todo o teu percurso na dança.</p>
         </div>
       </div>
 
@@ -87,6 +97,7 @@ export default function Registo({ irParaLogin, irParaLanding }) {
 
             <div className="input-container">
               <label>Email</label>
+<<<<<<< HEAD:frontend/src/pages/Registo.jsx
               <input
                 type="email"
                 placeholder="Insira o seu email"
@@ -94,6 +105,30 @@ export default function Registo({ irParaLogin, irParaLanding }) {
                 onChange={(e) => setEmail(e.target.value)}
                 required
               />
+=======
+              <input type="email" placeholder="exemplo@email.com" required />
+            </div>
+
+            <div className="input-container">
+               <label>Nº de Telefone</label>
+               <div className="input-tel-wrapper">
+              <span className="tel-prefix">
+              <img 
+                src="https://flagcdn.com/w20/pt.png" 
+                alt="PT" 
+                className="tel-flag" 
+              />
+               +351
+              </span>
+                <input 
+                  type="tel" 
+                  className="input-with-prefix"
+                  placeholder="912 345 678" 
+                  pattern="[0-9]{9}" 
+                  required 
+                />
+              </div>
+>>>>>>> main:frontend/src/pages/Login-Registo/Registo.jsx
             </div>
 
             <div className="input-container">
@@ -120,13 +155,7 @@ export default function Registo({ irParaLogin, irParaLanding }) {
 
           <footer className="form-footer">
             <span>Já tens uma conta?</span>
-            <a 
-              href="#" 
-              onClick={(e) => {
-                e.preventDefault();
-                irParaLogin();
-              }}
-            >
+            <a href="#" onClick={(e) => { e.preventDefault(); irParaLogin(); }}>
               Iniciar Sessão
             </a>
           </footer>
