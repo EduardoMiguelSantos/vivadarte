@@ -1,7 +1,7 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const userModel = require('../models/utilizadorModel');
-const { pool } = require('../config/db');
+const { pool, poolConnect } = require('../config/db');
 
 const PERFIL_MAP = {
     EE: 'EE',
@@ -54,7 +54,8 @@ async function registar(req, res, next) {
             email,
             passwordHash,
             telefone,
-            perfilNome
+            nomePerfil: perfilNome,
+            tipo
         });
 
         const perfis = await userModel.getPerfisDoUtilizador(novoUtilizador.id_utilizador);
@@ -84,7 +85,7 @@ async function login(req, res, next) {
             return res.status(400).json({ error: 'email, password e tipo são obrigatórios' });
         }
 
-        const perfilId = tipo === 'EE' ? 3 : 2;
+        const perfilId = tipo === 'EE' ? 2 : 3;
         const request = pool.request();
 
         request.input('email', email);
@@ -164,19 +165,31 @@ async function verificarTelefone(req, res, next) {
 async function resetPassword(req, res, next) {
     const { telefone, novaPassword } = req.body;
 
+    // Verificação básica de entrada
+    if (!telefone || !novaPassword) {
+        return res.status(400).json({ error: 'Telefone e nova password são obrigatórios.' });
+    }
+
     try {
         const salt = await bcrypt.genSalt(10);
         const hashedPw = await bcrypt.hash(novaPassword, salt);
 
-        const result = await userModel.updatePasswordByPhone(telefone, hashedPw);
+        const telefoneLimpo = telefone.replace(/\s/g, '');
+
+        const result = await pool.request()
+            .input('telefone', telefoneLimpo)
+            .input('password', hashedPw)
+            .query('UPDATE [dbo].[UTILIZADOR] SET [password] = @password WHERE telefone = @telefone AND ativo = 1');
 
         if (result.rowsAffected[0] === 0) {
-            return res.status(404).json({ error: 'Telefone não encontrado.' });
+            return res.status(404).json({ error: 'Utilizador não encontrado com este número de telefone.' });
         }
 
-        return res.status(200).json({ message: 'Password alterada com sucesso' });
+        return res.status(200).json({ message: 'Password alterada com sucesso!' });
+
     } catch (err) {
-        return next(err);
+        console.error("Erro detalhado no ResetPassword:", err);
+        return res.status(500).json({ error: 'Erro interno ao atualizar a password.' });
     }
 }
 

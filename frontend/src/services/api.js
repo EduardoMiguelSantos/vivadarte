@@ -28,8 +28,8 @@ export function authLogin({ email, password }) {
   return apiFetch('/api/auth/login', { method: 'POST', body: { email, password } });
 }
 
-export function authRegister({ nome, email, password, tipo }) {
-  return apiFetch('/api/auth/register', { method: 'POST', body: { nome, email, password, tipo } });
+export function authRegister({ nome, email, telefone, password, tipo }) {
+  return apiFetch('/api/auth/register', { method: 'POST', body: { nome, email, telefone, password, tipo } });
 }
 
 export function authMe(token) {
