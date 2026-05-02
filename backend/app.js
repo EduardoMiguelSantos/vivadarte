@@ -11,10 +11,15 @@ const app = express();
 // Middleware
 app.use(express.json());
 
-// Configuração de CORS melhorada para desenvolvimento
+// CORS flexível para ambiente local (qualquer porta em localhost/127.0.0.1)
 app.use(cors({
-    origin: ['http://localhost:5173', 'http://127.0.0.1:5173'],
-    methods: ['GET', 'POST', 'PUT', 'DELETE'],
+    origin(origin, callback) {
+        if (!origin) return callback(null, true);
+        const permitido = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(origin);
+        if (permitido) return callback(null, true);
+        return callback(new Error('Origem não permitida pelo CORS'));
+    },
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization']
 }));
 

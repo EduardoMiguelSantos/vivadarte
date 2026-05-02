@@ -1,11 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import './Landing.css';
 import logoImg from '../../assets/logo.png';
-import instagramIcon from '../../assets/instagram.png';
-import facebookIcon from '../../assets/facebook.png';
 
 export default function Landing({ irParaLogin, irParaRegisto }) {
   const [utilizador, setUtilizador] = useState(null);
+  const [modoPortal, setModoPortal] = useState(false);
 
   useEffect(() => {
     const userGuardado = localStorage.getItem('viva_user');
@@ -19,6 +18,18 @@ export default function Landing({ irParaLogin, irParaRegisto }) {
     window.location.reload();
   };
 
+  const handleIrParaInicio = (e) => {
+    if (e) e.preventDefault();
+    setModoPortal(false); 
+    window.scrollTo({ top: 0, left: 0, behavior: 'smooth' });
+    document.documentElement.scrollTo({ top: 0, left: 0, behavior: 'smooth' });
+    
+    const heroSection = document.getElementById('inicio');
+    if (heroSection) {
+      heroSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  };
+
   return (
     <div className="landing-container">
       {/* --- NAVBAR --- */}
@@ -28,23 +39,55 @@ export default function Landing({ irParaLogin, irParaRegisto }) {
           <span>VIVA D'ARTE</span>
         </div>
         
-        {/* ORDEM CORRIGIDA AQUI */}
         <ul className="nav-menu">
-        <li><a href="#inicio" onClick={(e) => { e.preventDefault(); window.scrollTo({ top: 0, behavior: 'smooth' }); document.documentElement.scrollIntoView({ behavior: 'smooth', block: 'start' }); }}>Início</a></li>
-        <li><a href="#sobre">Sobre Nós</a></li>
-        <li><a href="#modalidades">Modalidades</a></li>
-        <li><a href="#professores">Professores</a></li>
-        
-        {/* Links Privados (Só aparecem após Iniciar Sessão) */}
-        {utilizador && (
-          <>
-            <li className="nav-separator">|</li>
-            <li><a href="#agendar" className="special-link">Agendar</a></li>
-            <li><a href="#figurinos" className="special-link">Figurinos</a></li>
-            <li><a href="#emprestimos" className="special-link">Empréstimos</a></li> {/* <--- NOVA LINHA AQUI */}
-          </>
-        )}
-      </ul>
+          <li>
+            <a href="#inicio" onClick={handleIrParaInicio}>Início</a>
+          </li>
+
+          {!utilizador ? (
+            <>
+              <li><a href="#sobre">Sobre Nós</a></li>
+              <li><a href="#modalidades">Modalidades</a></li>
+              <li><a href="#professores">Professores</a></li>
+            </>
+          ) : !modoPortal ? (
+            <>
+              <li><a href="#sobre">Sobre Nós</a></li>
+              <li><a href="#modalidades">Modalidades</a></li>
+              <li><a href="#professores">Professores</a></li>
+              
+              <li className="nav-separator">|</li>
+              <li className="student-menu-group" onClick={(e) => {
+                  e.preventDefault();
+                  setModoPortal(true);
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}>
+                <div className="student-menu-bg" style={{ cursor: 'pointer', padding: '8px 20px' }}>
+                  <a href="#portal" className="student-link" onClick={(e) => e.preventDefault()}>
+                    Portal do {utilizador.perfil === 'Professor' ? 'Professor' : 'EE'}
+                  </a>
+                </div>
+              </li>
+            </>
+          ) : (
+            <>
+              <li className="nav-separator">|</li>
+              {utilizador.perfil === 'Professor' ? (
+                <>
+                  <li><a href="#coachings" className="special-link">Coaching Agendados</a></li>
+                  <li><a href="#emprestimos" className="special-link">Empréstimos de peças</a></li>
+                  <li><a href="#figurinos" className="special-link">Venda de figurinos</a></li>
+                </>
+              ) : (
+                <>
+                  <li><a href="#coachings" className="special-link">Agendar Coaching</a></li>
+                  <li><a href="#emprestimos" className="special-link">Empréstimos de peças</a></li>
+                  <li><a href="#figurinos" className="special-link">Venda de figurinos</a></li>
+                </>
+              )}
+            </>
+          )}
+        </ul>
 
         <div className="nav-actions">
           {utilizador ? (
@@ -84,7 +127,7 @@ export default function Landing({ irParaLogin, irParaRegisto }) {
         </div>
       </section>
 
-      {/* 3. MODALIDADES (Estilo Retangular) */}
+      {/* 3. MODALIDADES */}
       <section id="modalidades" className="section-container bg-light">
         <div className="section-header">
           <h2>Modalidades</h2>
@@ -114,7 +157,7 @@ export default function Landing({ irParaLogin, irParaRegisto }) {
         </div>
       </section>
 
-      {/* 4. PROFESSORES (Estilo Retangular) */}
+      {/* 4. PROFESSORES */}
       <section id="professores" className="section-container">
         <div className="section-header">
           <h2>Os Nossos Professores</h2>
@@ -133,7 +176,7 @@ export default function Landing({ irParaLogin, irParaRegisto }) {
         </div>
       </section>
 
-      {/* --- FOOTER (Estrutura restaurada, apenas imagens nas redes) --- */}
+      {/* --- FOOTER COMPACTO --- */}
       <footer className="main-footer">
         <div className="footer-container">
           <div className="footer-column">
@@ -156,10 +199,20 @@ export default function Landing({ irParaLogin, irParaRegisto }) {
 
           <div className="footer-column">
             <h3>Redes Sociais</h3>
-            {/* Apenas as imagens, sem texto */}
+            {/* Ícones SVG embutidos para garantir que aparecem sempre */}
             <div className="social-icons-only">
-              <a href="#"><img src={instagramIcon} alt="Instagram" /></a>
-              <a href="#"><img src={facebookIcon} alt="Facebook" /></a>
+              <a href="#" aria-label="Instagram">
+                <svg viewBox="0 0 24 24" className="social-svg" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect>
+                  <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path>
+                  <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line>
+                </svg>
+              </a>
+              <a href="#" aria-label="Facebook">
+                <svg viewBox="0 0 24 24" className="social-svg" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"></path>
+                </svg>
+              </a>
             </div>
           </div>
         </div>
