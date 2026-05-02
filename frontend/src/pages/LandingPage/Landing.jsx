@@ -8,7 +8,10 @@ export default function Landing({ irParaLogin, irParaRegisto }) {
 
   useEffect(() => {
     const userGuardado = localStorage.getItem('viva_user');
-    if (userGuardado) setUtilizador(JSON.parse(userGuardado));
+    if (userGuardado) {
+      setUtilizador(JSON.parse(userGuardado));
+      setModoPortal(true); // <-- ADICIONADO: Ativa o modo portal imediatamente após o login
+    }
     document.title = "Viva D'arte | Escola de Dança";
   }, []);
 
