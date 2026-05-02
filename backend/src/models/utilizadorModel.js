@@ -9,23 +9,6 @@ const sql = require('mssql');
  * Procura um utilizador pelo email para validar login ou existência.
  */
 async function getUtilizadorByEmail(email) {
-<<<<<<< HEAD
-    const result = await pool
-        .request()
-        .input('email', sql.NVarChar(255), email)
-        .query(`
-            SELECT
-                u.id_utilizador,
-                u.nome,
-                u.email,
-                u.[password] AS password_hash,
-                u.ativo
-            FROM UTILIZADOR u
-            WHERE u.email = @email
-        `);
-
-    return result.recordset[0] || null;
-=======
     try {
         const pool = await poolPromise;
         const query = `
@@ -48,7 +31,6 @@ async function getUtilizadorByEmail(email) {
         console.error('Erro no Modelo (getUtilizadorByEmail):', error);
         throw error;
     }
->>>>>>> Rafael
 }
 
 /**
@@ -60,13 +42,6 @@ async function getPerfisDoUtilizador(idUtilizador) {
         const query = `
             SELECT p.nome AS perfil
             FROM UTILIZADOR_PERFIL up
-<<<<<<< HEAD
-            INNER JOIN PERFIL p ON p.id_perfil = up.PERFILid_perfil
-            WHERE up.UTILIZADORid_utilizador = @utilizadorId
-        `);
-
-    return result.recordset.map((row) => row.nome);
-=======
             JOIN PERFIL p ON up.PERFILid_perfil = p.id_perfil
             WHERE up.UTILIZADORid_utilizador = @IdUtilizador;
         `;
@@ -79,7 +54,6 @@ async function getPerfisDoUtilizador(idUtilizador) {
         console.error('Erro no Modelo (getPerfisDoUtilizador):', error);
         throw error;
     }
->>>>>>> Rafael
 }
 
 // ============================================================================
@@ -103,19 +77,6 @@ async function criarUtilizador({ nome, email, passwordHash, telefone, nomePerfil
         const idPerfil = perfilResult.recordset[0]?.id_perfil;
         if (!idPerfil) throw new Error('Perfil especificado não existe.');
 
-<<<<<<< HEAD
-        const novoUtilizadorResult = await transaction
-            .request()
-            .input('nome', sql.NVarChar(255), nome)
-            .input('email', sql.NVarChar(255), email)
-            .input('passwordHash', sql.NVarChar(255), passwordHash)
-            .input('telefone', sql.NVarChar(30), telefone)
-            .query(`
-                INSERT INTO UTILIZADOR (nome, email, [password], telefone, data_criacao, ativo)
-                OUTPUT INSERTED.id_utilizador, INSERTED.nome, INSERTED.email, INSERTED.ativo
-                VALUES (@nome, @email, @passwordHash, @telefone, GETDATE(), 1)
-            `);
-=======
         // Inserir Utilizador (ativo=1 e data_criacao obrigatórios no DDL)
         const insertUserQuery = `
             INSERT INTO UTILIZADOR (nome, email, password, telefone, ativo, data_criacao)
@@ -128,20 +89,9 @@ async function criarUtilizador({ nome, email, passwordHash, telefone, nomePerfil
             .input('Password', sql.VarChar(255), passwordHash)
             .input('Telefone', sql.VarChar(30), telefone || null)
             .query(insertUserQuery);
->>>>>>> Rafael
 
         const novoUtilizador = novoUserResult.recordset[0];
 
-<<<<<<< HEAD
-        await transaction
-            .request()
-            .input('utilizadorId', sql.Int, utilizador.id_utilizador)
-            .input('perfilId', sql.Int, perfilEncontrado)
-            .query(`
-                INSERT INTO UTILIZADOR_PERFIL (UTILIZADORid_utilizador, PERFILid_perfil)
-                VALUES (@utilizadorId, @perfilId)
-            `);
-=======
         // Mapear o Utilizador ao Perfil (chaves estrangeiras exatas do DDL)
         const insertUserPerfilQuery = `
             INSERT INTO UTILIZADOR_PERFIL (UTILIZADORid_utilizador, PERFILid_perfil)
@@ -151,7 +101,6 @@ async function criarUtilizador({ nome, email, passwordHash, telefone, nomePerfil
             .input('IdUser', sql.Int, novoUtilizador.id_utilizador)
             .input('IdPerfil', sql.Int, idPerfil)
             .query(insertUserPerfilQuery);
->>>>>>> Rafael
 
         await transaction.commit();
         return novoUtilizador;
@@ -294,33 +243,13 @@ async function getAlunosPorEncarregado(idEncarregado) {
     }
 }
 
-async function updatePasswordByPhone(telefone, hashedPw) {
-    const { pool } = require('../config/db');
-    
-    const sql = `
-        UPDATE [dbo].[UTILIZADOR]
-        SET [password] = @hashedPw
-        WHERE [telefone] = @telefone AND [ativo] = 1
-    `;
-    
-    return pool.request()
-        .input('hashedPw', hashedPw)
-        .input('telefone', telefone)
-        .query(sql);
-}
-
 module.exports = {
     getUtilizadorByEmail,
     getPerfisDoUtilizador,
     criarUtilizador,
-<<<<<<< HEAD
-    updatePasswordByPhone
-};
-=======
     alterarEstadoUtilizador,
     guardarTokenRecuperacao,
     validarTokenRecuperacao,
     atualizarPassword,
     getAlunosPorEncarregado
 };
->>>>>>> Rafael
