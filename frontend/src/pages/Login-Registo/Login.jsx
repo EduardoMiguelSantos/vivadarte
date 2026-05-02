@@ -24,6 +24,7 @@ export default function Login({ irParaRegisto, irParaLanding, irParaRecuperar })
 
       if (response.ok) {
         localStorage.setItem('viva_user', JSON.stringify(resultado.user));
+        alert(`Bem-vindo de volta !`);
         irParaLanding(); 
       } else {
         alert(resultado.error || "Dados de acesso incorretos.");

@@ -1,6 +1,6 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const userModel = require('../models/userModel');
+const userModel = require('../models/utilizadorModel');
 const { pool } = require('../config/db');
 
 const PERFIL_MAP = {
@@ -34,7 +34,7 @@ async function registar(req, res, next) {
     try {
         const { nome, email, password, telefone, tipo } = req.body;
 
-        if (!nome || !email || !password || !tipo || !telefone  ) {
+        if (!nome || !email || !password || !tipo || !telefone) {
             return res.status(400).json({ error: 'nome, email, password, telefone e tipo são obrigatórios' });
         }
 
@@ -144,8 +144,46 @@ async function me(req, res, next) {
     }
 }
 
+async function verificarTelefone(req, res, next) {
+    const { telefone } = req.body;
+    try {
+        const result = await pool.request()
+            .input('telefone', telefone)
+            .query('SELECT id_utilizador FROM [dbo].[UTILIZADOR] WHERE telefone = @telefone AND ativo = 1');
+
+        if (result.recordset.length === 0) {
+            return res.status(404).json({ error: 'Telefone incorreto!' });
+        }
+
+        return res.status(200).json({ message: 'Telefone encontrado!' });
+    } catch (err) {
+        next(err);
+    }
+}
+
+async function resetPassword(req, res, next) {
+    const { telefone, novaPassword } = req.body;
+
+    try {
+        const salt = await bcrypt.genSalt(10);
+        const hashedPw = await bcrypt.hash(novaPassword, salt);
+
+        const result = await userModel.updatePasswordByPhone(telefone, hashedPw);
+
+        if (result.rowsAffected[0] === 0) {
+            return res.status(404).json({ error: 'Telefone não encontrado.' });
+        }
+
+        return res.status(200).json({ message: 'Password alterada com sucesso' });
+    } catch (err) {
+        return next(err);
+    }
+}
+
 module.exports = {
     registar,
     login,
-    me
+    me,
+    verificarTelefone,
+    resetPassword
 };
