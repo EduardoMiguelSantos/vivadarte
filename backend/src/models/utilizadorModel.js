@@ -34,6 +34,28 @@ async function getUtilizadorByEmail(email) {
 }
 
 /**
+ * Procura um utilizador pelo ID (Essencial para validação de Tokens JWT no Middleware).
+ */
+async function getUtilizadorById(idUtilizador) {
+    try {
+        const pool = await poolPromise;
+        const query = `
+            SELECT id_utilizador, nome, email, telefone, ativo, data_criacao 
+            FROM UTILIZADOR 
+            WHERE id_utilizador = @IdUtilizador;
+        `;
+        const result = await pool.request()
+            .input('IdUtilizador', sql.Int, idUtilizador)
+            .query(query);
+            
+        return result.recordset[0] || null;
+    } catch (error) {
+        console.error('Erro no Modelo (getUtilizadorById):', error);
+        throw error;
+    }
+}
+
+/**
  * Obtém os nomes dos perfis associados a um utilizador (Admin, Professor, EE).
  */
 async function getPerfisDoUtilizador(idUtilizador) {
@@ -77,7 +99,7 @@ async function criarUtilizador({ nome, email, passwordHash, telefone, nomePerfil
         const idPerfil = perfilResult.recordset[0]?.id_perfil;
         if (!idPerfil) throw new Error('Perfil especificado não existe.');
 
-        // Inserir Utilizador (ativo=1 e data_criacao obrigatórios no DDL)
+        // Inserir Utilizador (ativo=1 e data_criacao gerada nativamente no SQL)
         const insertUserQuery = `
             INSERT INTO UTILIZADOR (nome, email, password, telefone, ativo, data_criacao)
             OUTPUT INSERTED.id_utilizador, INSERTED.nome, INSERTED.email, INSERTED.ativo
@@ -92,7 +114,7 @@ async function criarUtilizador({ nome, email, passwordHash, telefone, nomePerfil
 
         const novoUtilizador = novoUserResult.recordset[0];
 
-        // Mapear o Utilizador ao Perfil (chaves estrangeiras exatas do DDL)
+        // Mapear o Utilizador ao Perfil garantindo a integridade
         const insertUserPerfilQuery = `
             INSERT INTO UTILIZADOR_PERFIL (UTILIZADORid_utilizador, PERFILid_perfil)
             VALUES (@IdUser, @IdPerfil);
@@ -113,7 +135,31 @@ async function criarUtilizador({ nome, email, passwordHash, telefone, nomePerfil
 }
 
 /**
- * Ativa ou desativa uma conta de utilizador.
+ * Edita a informação base de um utilizador existente.
+ */
+async function atualizarDadosUtilizador(idUtilizador, nome, telefone) {
+    try {
+        const pool = await poolPromise;
+        const query = `
+            UPDATE UTILIZADOR 
+            SET nome = @Nome, telefone = @Telefone 
+            WHERE id_utilizador = @IdUtilizador;
+        `;
+        await pool.request()
+            .input('IdUtilizador', sql.Int, idUtilizador)
+            .input('Nome', sql.VarChar(255), nome)
+            .input('Telefone', sql.VarChar(30), telefone || null)
+            .query(query);
+            
+        return true;
+    } catch (error) {
+        console.error('Erro no Modelo (atualizarDadosUtilizador):', error);
+        throw error;
+    }
+}
+
+/**
+ * Ativa ou desativa uma conta de utilizador (Soft-Delete).
  */
 async function alterarEstadoUtilizador(idUtilizador, estadoAtivo) {
     try {
@@ -140,7 +186,7 @@ async function alterarEstadoUtilizador(idUtilizador, estadoAtivo) {
 // ============================================================================
 
 /**
- * Regista um token de recuperação com expiração.
+ * Regista um token de recuperação calculando a expiração via SQL Server.
  */
 async function guardarTokenRecuperacao(idUtilizador, token) {
     try {
@@ -187,7 +233,7 @@ async function validarTokenRecuperacao(token) {
 }
 
 /**
- * Atualiza a password e invalida o token utilizado.
+ * Atualiza a password e invalida o token utilizado numa única transação.
  */
 async function atualizarPassword(idUtilizador, novaPasswordHash, idToken) {
     const pool = await poolPromise;
@@ -245,8 +291,10 @@ async function getAlunosPorEncarregado(idEncarregado) {
 
 module.exports = {
     getUtilizadorByEmail,
+    getUtilizadorById,
     getPerfisDoUtilizador,
     criarUtilizador,
+    atualizarDadosUtilizador,
     alterarEstadoUtilizador,
     guardarTokenRecuperacao,
     validarTokenRecuperacao,

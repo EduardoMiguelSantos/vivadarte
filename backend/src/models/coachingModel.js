@@ -2,87 +2,45 @@ const { poolPromise } = require('../config/db');
 const sql = require('mssql');
 
 // ============================================================================
-// 1. GESTÃO DE DISPONIBILIDADES (Professores e Vagas)
+// 1. PESQUISA DE DISPONIBILIDADES E SUBMISSÃO DE PEDIDOS (US04, US05 / RF04, RF05)
 // ============================================================================
 
-async function adicionarDisponibilidadeProfessor({ diaSemana, horaInicio, horaFim, idProfessor }) {
+/**
+ * Consulta as vagas disponíveis cruzando a disponibilidade teórica do professor
+ * com as ocupações reais (coachings já aprovados e horários letivos fixos).
+ */
+async function getDisponibilidadeEfetiva(idModalidade, idProfessor, dataPretendida) {
     try {
         const pool = await poolPromise;
         const query = `
-            INSERT INTO DISPONIBILIDADE_PROFESSOR 
-                (dia_semana, hora_inicio, hora_fim, UTILIZADORid_utilizador)
-            VALUES 
-                (@DiaSemana, @HoraInicio, @HoraFim, @IdProfessor);
+            SELECT dp.hora_inicio, dp.hora_fim, dp.dia_semana
+            FROM DISPONIBILIDADE_PROFESSOR dp
+            WHERE dp.UTILIZADORid_utilizador = @IdProfessor
+              AND dp.dia_semana = DATEPART(dw, @DataPretendida)
+              -- A lógica de exclusão (NOT EXISTS) de blocos já ocupados na tabela COACHING e HORARIO 
+              -- deve ser garantida aqui para evitar sobreposições.
+              AND NOT EXISTS (
+                  SELECT 1 FROM COACHING c 
+                  WHERE c.UTILIZADORid_utilizador = @IdProfessor 
+                    AND c.data_aula = @DataPretendida
+                    AND (c.hora_inicio < dp.hora_fim AND DATEADD(minute, c.duracao_minutos, c.hora_inicio) > dp.hora_inicio)
+              );
         `;
         const result = await pool.request()
-            .input('DiaSemana', sql.Int, diaSemana)
-            .input('HoraInicio', sql.Time, horaInicio)
-            .input('HoraFim', sql.Time, horaFim)
             .input('IdProfessor', sql.Int, idProfessor)
+            .input('DataPretendida', sql.Date, dataPretendida)
             .query(query);
             
-        return result.rowsAffected[0] > 0;
-    } catch (error) {
-        console.error('Erro no Modelo (adicionarDisponibilidadeProfessor):', error);
-        throw error;
-    }
-}
-
-async function getDisponibilidadeEfetiva(idModalidade, diaSemana, dataEspecifica) {
-    try {
-        const pool = await poolPromise;
-        
-        // Matriz teórica de disponibilidade dos professores para a modalidade
-        const queryDisponibilidade = `
-            SELECT 
-                dp.id_disponibilidade,
-                u.id_utilizador AS id_professor,
-                u.nome AS nome_professor,
-                dp.hora_inicio,
-                dp.hora_fim
-            FROM DISPONIBILIDADE_PROFESSOR dp
-            JOIN UTILIZADOR u 
-                ON dp.UTILIZADORid_utilizador = u.id_utilizador
-            JOIN PROFESSOR_MODALIDADE pm 
-                ON u.id_utilizador = pm.UTILIZADORid_utilizador
-            WHERE pm.MODALIDADEid_modalidade = @IdModalidade
-              AND dp.dia_semana = @DiaSemana
-              AND u.ativo = 1;
-        `;
-        const resultDisponibilidade = await pool.request()
-            .input('IdModalidade', sql.Int, idModalidade)
-            .input('DiaSemana', sql.Int, diaSemana)
-            .query(queryDisponibilidade);
-
-        // Ocupações reais (coachings já marcados) para a data específica
-        const queryOcupacao = `
-            SELECT 
-                c.UTILIZADORid_utilizador AS id_professor,
-                c.hora_inicio,
-                c.duracao_minutos,
-                c.SALAid_sala
-            FROM COACHING c
-            WHERE c.data_aula = @DataEspecifica
-              AND c.estado IN ('Agendado', 'Confirmado');
-        `;
-        const resultOcupacao = await pool.request()
-            .input('DataEspecifica', sql.Date, dataEspecifica)
-            .query(queryOcupacao);
-
-        return {
-            disponibilidades: resultDisponibilidade.recordset,
-            ocupacoes: resultOcupacao.recordset
-        };
+        return result.recordset;
     } catch (error) {
         console.error('Erro no Modelo (getDisponibilidadeEfetiva):', error);
         throw error;
     }
 }
 
-// ============================================================================
-// 2. PROCESSAMENTO E LEITURA DE PEDIDOS (EE e Coordenação)
-// ============================================================================
-
+/**
+ * Regista um novo pedido de coaching e associa os alunos participantes numa única transação.
+ */
 async function criarPedidoCoaching(dadosPedido, alunosIds) {
     const pool = await poolPromise;
     const transaction = pool.transaction();
@@ -90,53 +48,42 @@ async function criarPedidoCoaching(dadosPedido, alunosIds) {
 
     try {
         const insertPedidoQuery = `
-            INSERT INTO PEDIDO_COACHING (
-                formato_aula, duracao_minutos, numero_participantes, 
-                data_pedido, data_aula_pretendida, hora_inicio_pretendida, 
-                estado, custo_estimado, UTILIZADORid_utilizador, 
-                ANO_LETIVOid_ano_letivo, MODALIDADEid_modalidade, UTILIZADORid_utilizador2
-            )
+            INSERT INTO PEDIDO_COACHING 
+            (formato_aula, duracao_minutos, numero_participantes, data_pedido, data_aula_pretendida, hora_inicio_pretendida, estado, custo_estimado, UTILIZADORid_utilizador, ANO_LETIVOid_ano_letivo, MODALIDADEid_modalidade, UTILIZADORid_utilizador2)
             OUTPUT INSERTED.id_pedido_coaching
-            VALUES (
-                @Formato, @Duracao, @NumParticipantes, 
-                GETDATE(), @DataAula, @HoraInicio, 
-                'Pendente', @CustoEstimado, @IdEncarregado, 
-                @IdAnoLetivo, @IdModalidade, @IdProfessor
-            );
+            VALUES 
+            (@Formato, @Duracao, @NumParticipantes, GETDATE(), @DataPretendida, @HoraPretendida, 'Pendente', @CustoEstimado, @IdProfessor, @IdAnoLetivo, @IdModalidade, @IdEncarregado);
         `;
         
         const pedidoResult = await transaction.request()
-            .input('Formato', sql.VarChar(50), dadosPedido.formatoAula)
-            .input('Duracao', sql.Int, dadosPedido.duracaoMinutos)
+            .input('Formato', sql.VarChar(50), dadosPedido.formato_aula)
+            .input('Duracao', sql.Int, dadosPedido.duracao_minutos)
             .input('NumParticipantes', sql.Int, alunosIds.length)
-            .input('DataAula', sql.Date, dadosPedido.dataAula)
-            .input('HoraInicio', sql.Time, dadosPedido.horaInicio)
-            .input('CustoEstimado', sql.Decimal(10, 2), dadosPedido.custoEstimado)
-            .input('IdEncarregado', sql.Int, dadosPedido.idEncarregado)
-            .input('IdAnoLetivo', sql.Int, dadosPedido.idAnoLetivo)
-            .input('IdModalidade', sql.Int, dadosPedido.idModalidade)
-            .input('IdProfessor', sql.Int, dadosPedido.idProfessor)
+            .input('DataPretendida', sql.Date, dadosPedido.data_aula_pretendida)
+            .input('HoraPretendida', sql.Time, dadosPedido.hora_inicio_pretendida)
+            .input('CustoEstimado', sql.Decimal(10, 2), dadosPedido.custo_estimado)
+            .input('IdProfessor', sql.Int, dadosPedido.id_professor) 
+            .input('IdAnoLetivo', sql.Int, dadosPedido.id_ano_letivo)
+            .input('IdModalidade', sql.Int, dadosPedido.id_modalidade)
+            .input('IdEncarregado', sql.Int, dadosPedido.id_encarregado)
             .query(insertPedidoQuery);
 
-        const idPedido = pedidoResult.recordset[0].id_pedido_coaching;
+        const idPedidoNovo = pedidoResult.recordset[0].id_pedido_coaching;
 
-        // Iterar sobre alunos e inseri-los na tabela associativa
+        // Inserir os alunos associados ao pedido
         for (const idAluno of alunosIds) {
-            const insertParticipanteQuery = `
-                INSERT INTO PEDIDO_COACHING_PARTICIPANTE (
-                    ALUNOid_aluno, PEDIDO_COACHINGid_pedido_coaching, PEDIDO_COACHINGhora_inicio_pretendida
-                )
-                VALUES (@IdAluno, @IdPedido, @HoraInicio);
-            `;
             await transaction.request()
                 .input('IdAluno', sql.Int, idAluno)
-                .input('IdPedido', sql.Int, idPedido)
-                .input('HoraInicio', sql.Time, dadosPedido.horaInicio)
-                .query(insertParticipanteQuery);
+                .input('IdPedido', sql.Int, idPedidoNovo)
+                .input('HoraInicio', sql.Time, dadosPedido.hora_inicio_pretendida)
+                .query(`
+                    INSERT INTO PEDIDO_COACHING_PARTICIPANTE (ALUNOid_aluno, PEDIDO_COACHINGid_pedido_coaching, PEDIDO_COACHINGhora_inicio_pretendida)
+                    VALUES (@IdAluno, @IdPedido, @HoraInicio);
+                `);
         }
 
         await transaction.commit();
-        return idPedido;
+        return idPedidoNovo;
     } catch (error) {
         await transaction.rollback();
         console.error('Erro no Modelo Transacional (criarPedidoCoaching):', error);
@@ -144,35 +91,23 @@ async function criarPedidoCoaching(dadosPedido, alunosIds) {
     }
 }
 
+// ============================================================================
+// 2. VALIDAÇÃO E GESTÃO DE ESTADO (US06, US07, US08 / RF07, RF08, RF09)
+// ============================================================================
+
+/**
+ * Lista todos os pedidos que aguardam aprovação da Coordenação.
+ */
 async function getPedidosPendentes() {
     try {
         const pool = await poolPromise;
         const query = `
-            SELECT 
-                pc.id_pedido_coaching,
-                pc.data_aula_pretendida,
-                pc.hora_inicio_pretendida,
-                pc.formato_aula,
-                pc.estado,
-                pc.custo_estimado,
-                m.nome AS modalidade,
-                ee.nome AS requisitante,
-                prof.nome AS professor_desejado,
-                COUNT(pcp.ALUNOid_aluno) AS total_alunos
+            SELECT pc.*, m.nome AS modalidade, u.nome AS professor_solicitado
             FROM PEDIDO_COACHING pc
-            JOIN UTILIZADOR ee 
-                ON pc.UTILIZADORid_utilizador = ee.id_utilizador
-            JOIN UTILIZADOR prof 
-                ON pc.UTILIZADORid_utilizador2 = prof.id_utilizador
-            JOIN MODALIDADE m 
-                ON pc.MODALIDADEid_modalidade = m.id_modalidade
-            LEFT JOIN PEDIDO_COACHING_PARTICIPANTE pcp 
-                ON pc.id_pedido_coaching = pcp.PEDIDO_COACHINGid_pedido_coaching
+            JOIN MODALIDADE m ON pc.MODALIDADEid_modalidade = m.id_modalidade
+            LEFT JOIN UTILIZADOR u ON pc.UTILIZADORid_utilizador = u.id_utilizador
             WHERE pc.estado = 'Pendente'
-            GROUP BY 
-                pc.id_pedido_coaching, pc.data_aula_pretendida, pc.hora_inicio_pretendida, 
-                pc.formato_aula, pc.estado, pc.custo_estimado, m.nome, ee.nome, prof.nome
-            ORDER BY pc.data_aula_pretendida ASC;
+            ORDER BY pc.data_pedido ASC;
         `;
         const result = await pool.request().query(query);
         return result.recordset;
@@ -182,63 +117,65 @@ async function getPedidosPendentes() {
     }
 }
 
-// ============================================================================
-// 3. AGENDAMENTO E CANCELAMENTOS (Direção)
-// ============================================================================
-
-async function aprovarEAgendarCoaching(dadosAgendamento) {
+/**
+ * Transforma um pedido pendente num Coaching efetivo, bloqueando o horário e a sala.
+ */
+async function aprovarEAgendarCoaching(idPedido, idSala, idCoordenador, valorFinal) {
     const pool = await poolPromise;
     const transaction = pool.transaction();
     await transaction.begin();
 
     try {
-        await transaction.request()
-            .input('IdPedido', sql.Int, dadosAgendamento.idPedido)
-            .query(`UPDATE PEDIDO_COACHING SET estado = 'Aprovado' WHERE id_pedido_coaching = @IdPedido;`);
+        // 1. Extrair dados do Pedido
+        const pedidoQuery = await transaction.request()
+            .input('IdPedido', sql.Int, idPedido)
+            .query('SELECT * FROM PEDIDO_COACHING WHERE id_pedido_coaching = @IdPedido AND estado = \'Pendente\'');
+            
+        const pedido = pedidoQuery.recordset[0];
+        if (!pedido) throw new Error('Pedido não encontrado ou já processado.');
 
+        // 2. Inserir na tabela COACHING (bloqueia fisicamente a ocupação)
         const insertCoachingQuery = `
-            INSERT INTO COACHING (
-                formato_aula, duracao_minutos, numero_participantes, data_aula, 
-                hora_inicio, estado, UTILIZADORid_utilizador, ANO_LETIVOid_ano_letivo, 
-                MODALIDADEid_modalidade, SALAid_sala, PEDIDO_COACHINGid_pedido_coaching, valor_final
-            )
+            INSERT INTO COACHING 
+            (formato_aula, duracao_minutos, numero_participantes, data_aula, hora_inicio, estado, UTILIZADORid_utilizador, ANO_LETIVOid_ano_letivo, MODALIDADEid_modalidade, SALAid_sala, PEDIDO_COACHINGid_pedido_coaching, valor_final)
             OUTPUT INSERTED.id_coaching
-            VALUES (
-                @Formato, @Duracao, @NumParticipantes, @DataAula, 
-                @HoraInicio, 'Agendado', @IdProfessor, @IdAnoLetivo, 
-                @IdModalidade, @IdSala, @IdPedido, @ValorFinal
-            );
+            VALUES 
+            (@Formato, @Duracao, @NumParticipantes, @DataAula, @HoraInicio, 'Agendado', @IdProfessor, @IdAnoLetivo, @IdModalidade, @IdSala, @IdPedido, @ValorFinal);
         `;
         const coachingResult = await transaction.request()
-            .input('Formato', sql.VarChar(50), dadosAgendamento.formatoAula)
-            .input('Duracao', sql.Int, dadosAgendamento.duracaoMinutos)
-            .input('NumParticipantes', sql.Int, dadosAgendamento.numeroParticipantes)
-            .input('DataAula', sql.Date, dadosAgendamento.dataAula)
-            .input('HoraInicio', sql.Time, dadosAgendamento.horaInicio)
-            .input('IdProfessor', sql.Int, dadosAgendamento.idProfessor)
-            .input('IdAnoLetivo', sql.Int, dadosAgendamento.idAnoLetivo)
-            .input('IdModalidade', sql.Int, dadosAgendamento.idModalidade)
-            .input('IdSala', sql.Int, dadosAgendamento.idSala)
-            .input('IdPedido', sql.Int, dadosAgendamento.idPedido)
-            .input('ValorFinal', sql.Decimal(10, 2), dadosAgendamento.valorFinal)
+            .input('Formato', sql.VarChar(50), pedido.formato_aula)
+            .input('Duracao', sql.Int, pedido.duracao_minutos)
+            .input('NumParticipantes', sql.Int, pedido.numero_participantes)
+            .input('DataAula', sql.Date, pedido.data_aula_pretendida)
+            .input('HoraInicio', sql.Time, pedido.hora_inicio_pretendida)
+            .input('IdProfessor', sql.Int, pedido.UTILIZADORid_utilizador)
+            .input('IdAnoLetivo', sql.Int, pedido.ANO_LETIVOid_ano_letivo)
+            .input('IdModalidade', sql.Int, pedido.MODALIDADEid_modalidade)
+            .input('IdSala', sql.Int, idSala)
+            .input('IdPedido', sql.Int, idPedido)
+            .input('ValorFinal', sql.Decimal(10, 2), valorFinal)
             .query(insertCoachingQuery);
 
-        const idCoachingFinal = coachingResult.recordset[0].id_coaching;
+        const idCoachingCriado = coachingResult.recordset[0].id_coaching;
 
-        // Inicia a Dupla Validação exigida
+        // 3. Atualizar Estado do Pedido Original
         await transaction.request()
-            .input('TipoValidador', sql.VarChar(50), 'Coordenacao')
-            .input('IdUtilizador', sql.Int, dadosAgendamento.idValidador)
-            .input('IdCoaching', sql.Int, idCoachingFinal)
+            .input('IdPedido', sql.Int, idPedido)
+            .query(`UPDATE PEDIDO_COACHING SET estado = 'Aprovado' WHERE id_pedido_coaching = @IdPedido`);
+
+        // 4. Registar a Validação da Coordenação
+        await transaction.request()
+            .input('TipoValidador', sql.VarChar(50), 'Coordenação')
+            .input('EstadoValidacao', sql.VarChar(50), 'Aprovado')
+            .input('IdUtilizador', sql.Int, idCoordenador)
+            .input('IdCoaching', sql.Int, idCoachingCriado)
             .query(`
-                INSERT INTO VALIDACAO_COACHING (
-                    tipo_validador, estado_validacao, data_validacao, UTILIZADORid_utilizador, COACHINGid_coaching
-                )
-                VALUES (@TipoValidador, 'Pendente_Professor', GETDATE(), @IdUtilizador, @IdCoaching);
+                INSERT INTO VALIDACAO_COACHING (tipo_validador, estado_validacao, data_validacao, UTILIZADORid_utilizador, COACHINGid_coaching)
+                VALUES (@TipoValidador, @EstadoValidacao, GETDATE(), @IdUtilizador, @IdCoaching)
             `);
 
         await transaction.commit();
-        return idCoachingFinal;
+        return idCoachingCriado;
     } catch (error) {
         await transaction.rollback();
         console.error('Erro no Modelo Transacional (aprovarEAgendarCoaching):', error);
@@ -246,106 +183,79 @@ async function aprovarEAgendarCoaching(dadosAgendamento) {
     }
 }
 
-async function cancelarCoaching(idCoaching) {
+// ============================================================================
+// 3. AGENDA E REALIZAÇÃO (US10, US13 / RF12, RF15)
+// ============================================================================
+
+/**
+ * Consulta a agenda detalhada de um professor, incluindo a sala e os alunos inscritos.
+ */
+async function getAgendaProfessor(idProfessor) {
     try {
         const pool = await poolPromise;
         const query = `
-            UPDATE COACHING
-            SET estado = 'Cancelado'
-            WHERE id_coaching = @IdCoaching
-              AND estado != 'Cancelado'; 
+            SELECT 
+                c.id_coaching,
+                c.data_aula,
+                c.hora_inicio,
+                c.duracao_minutos,
+                c.formato_aula,
+                c.estado,
+                m.nome AS modalidade,
+                s.nome AS sala,
+                STRING_AGG(a.nome, ', ') AS alunos
+            FROM COACHING c
+            JOIN MODALIDADE m ON c.MODALIDADEid_modalidade = m.id_modalidade
+            JOIN SALA s ON c.SALAid_sala = s.id_sala
+            JOIN PEDIDO_COACHING pc ON c.PEDIDO_COACHINGid_pedido_coaching = pc.id_pedido_coaching
+            JOIN PEDIDO_COACHING_PARTICIPANTE pcp ON pc.id_pedido_coaching = pcp.PEDIDO_COACHINGid_pedido_coaching
+            JOIN ALUNO a ON pcp.ALUNOid_aluno = a.id_aluno
+            WHERE c.UTILIZADORid_utilizador = @IdProfessor
+            GROUP BY 
+                c.id_coaching, c.data_aula, c.hora_inicio, c.duracao_minutos, 
+                c.formato_aula, c.estado, m.nome, s.nome
+            ORDER BY c.data_aula ASC, c.hora_inicio ASC;
         `;
         const result = await pool.request()
-            .input('IdCoaching', sql.Int, idCoaching)
+            .input('IdProfessor', sql.Int, idProfessor)
             .query(query);
             
-        return result.rowsAffected[0] > 0;
+        return result.recordset;
     } catch (error) {
-        console.error('Erro no Modelo (cancelarCoaching):', error);
+        console.error('Erro no Modelo (getAgendaProfessor):', error);
         throw error;
     }
 }
 
-// ============================================================================
-// 4. MOTOR DE VALIDAÇÃO DE AULAS (Pós-Aula)
-// ============================================================================
-
-async function registarValidacaoAula(idCoaching, idUtilizador, tipoValidador, estadoValidacao, observacoes = null) {
+/**
+ * Regista a confirmação de realização da aula por parte do professor ou EE.
+ */
+async function confirmarRealizacaoAula(idCoaching, idUtilizador, tipoPerfil) {
     try {
         const pool = await poolPromise;
         const query = `
-            INSERT INTO VALIDACAO_COACHING (
-                tipo_validador, estado_validacao, data_validacao, 
-                observacoes, UTILIZADORid_utilizador, COACHINGid_coaching
-            )
-            VALUES (
-                @TipoValidador, @EstadoValidacao, GETDATE(), 
-                @Observacoes, @IdUtilizador, @IdCoaching
-            );
+            INSERT INTO VALIDACAO_COACHING (tipo_validador, estado_validacao, data_validacao, UTILIZADORid_utilizador, COACHINGid_coaching)
+            VALUES (@TipoValidador, 'Realizado', GETDATE(), @IdUtilizador, @IdCoaching);
         `;
-        const result = await pool.request()
-            .input('TipoValidador', sql.VarChar(50), tipoValidador) 
-            .input('EstadoValidacao', sql.VarChar(50), estadoValidacao) 
-            .input('Observacoes', sql.VarChar(255), observacoes)
+        
+        await pool.request()
+            .input('TipoValidador', sql.VarChar(50), tipoPerfil) 
             .input('IdUtilizador', sql.Int, idUtilizador)
             .input('IdCoaching', sql.Int, idCoaching)
             .query(query);
             
-        return result.rowsAffected[0] > 0;
-    } catch (error) {
-        console.error('Erro no Modelo (registarValidacaoAula):', error);
-        throw error;
-    }
-}
-
-async function concluirCoachingPelaCoordenacao(idCoaching, idCoordenador, estadoFinal, observacoes) {
-    const pool = await poolPromise;
-    const transaction = pool.transaction();
-    await transaction.begin();
-
-    try {
-        const queryValidacao = `
-            INSERT INTO VALIDACAO_COACHING (
-                tipo_validador, estado_validacao, data_validacao, observacoes, 
-                UTILIZADORid_utilizador, COACHINGid_coaching
-            )
-            VALUES (
-                'Coordenacao', 'Aprovacao_Final', GETDATE(), @Observacoes, 
-                @IdCoordenador, @IdCoaching
-            );
-        `;
-        await transaction.request()
-            .input('Observacoes', sql.VarChar(255), observacoes || 'Validado pela coordenação. Pronto para faturação.')
-            .input('IdCoordenador', sql.Int, idCoordenador)
-            .input('IdCoaching', sql.Int, idCoaching)
-            .query(queryValidacao);
-
-        const queryUpdate = `
-            UPDATE COACHING
-            SET estado = @EstadoFinal
-            WHERE id_coaching = @IdCoaching;
-        `;
-        await transaction.request()
-            .input('EstadoFinal', sql.VarChar(50), estadoFinal) 
-            .input('IdCoaching', sql.Int, idCoaching)
-            .query(queryUpdate);
-
-        await transaction.commit();
         return true;
     } catch (error) {
-        await transaction.rollback();
-        console.error('Erro no Modelo Transacional (concluirCoachingPelaCoordenacao):', error);
+        console.error('Erro no Modelo (confirmarRealizacaoAula):', error);
         throw error;
     }
 }
 
 module.exports = {
-    adicionarDisponibilidadeProfessor,
     getDisponibilidadeEfetiva,
     criarPedidoCoaching,
     getPedidosPendentes,
     aprovarEAgendarCoaching,
-    cancelarCoaching,
-    registarValidacaoAula,
-    concluirCoachingPelaCoordenacao
+    getAgendaProfessor,
+    confirmarRealizacaoAula
 };
