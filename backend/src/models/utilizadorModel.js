@@ -98,22 +98,21 @@ async function criarUtilizador({ nome, email, passwordHash, telefone, nomePerfil
     await transaction.begin();
  
     try {
-        // Obter ID do Perfil por nome (preferencial) ou por tipo conhecido
-        let idPerfil = null;
-
-        if (nomePerfil) {
-            const perfilResult = await transaction.request()
-                .input('NomePerfil', sql.VarChar(100), nomePerfil)
-                .query('SELECT id_perfil FROM PERFIL WHERE nome = @NomePerfil');
-            idPerfil = perfilResult.recordset[0]?.id_perfil || null;
+        // Verificar se o email já existe
+        const emailExiste = await transaction.request()
+            .input('Email', sql.VarChar(255), email)
+            .query('SELECT id_utilizador FROM UTILIZADOR WHERE email = @Email');
+ 
+        if (emailExiste.recordset.length > 0) {
+            throw new Error('Já existe um utilizador com este email.');
         }
-
-        if (!idPerfil && tipo) {
-            const tipoNormalizado = String(tipo).toUpperCase();
-            if (tipoNormalizado === 'EE') idPerfil = 2;
-            if (tipoNormalizado === 'PROF') idPerfil = 3;
-        }
-
+ 
+        // Obter ID do Perfil
+        const perfilResult = await transaction.request()
+            .input('NomePerfil', sql.VarChar(100), nomePerfil)
+            .query('SELECT id_perfil FROM PERFIL WHERE nome = @NomePerfil');
+ 
+        const idPerfil = perfilResult.recordset[0]?.id_perfil;
         if (!idPerfil) throw new Error('Perfil especificado não existe.');
  
         // Inserir Utilizador
