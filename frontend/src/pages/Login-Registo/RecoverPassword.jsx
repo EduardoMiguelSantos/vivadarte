@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import './LoginRegisto.css'; 
 
 export default function RecoverPassword({ irParaLogin, irParaLanding }) {
-  // Etapa 1: Telefone | Etapa 2: Código Visual | Etapa 3: Nova Password
   const [etapa, setEtapa] = useState(1); 
   const [telefone, setTelefone] = useState('');
   const [codigo, setCodigo] = useState('');
@@ -12,38 +11,58 @@ export default function RecoverPassword({ irParaLogin, irParaLanding }) {
     document.title = "Recuperar Password | Viva D'arte";
   }, []);
 
+  // Função para formatar o telefone como 999 999 999
+  const formatarTelefone = (valor) => {
+    // Remove tudo o que não é dígito
+    const apenasNumeros = valor.replace(/\D/g, '');
+    
+    // Aplica a máscara 999 999 999
+    return apenasNumeros
+      .replace(/(\d{3})(\d)/, '$1 $2')
+      .replace(/(\d{3})(\d)/, '$1 $2')
+      .substring(0, 11); // Limita o tamanho visual
+  };
+
+  const handleTelefoneChange = (e) => {
+    const valorFormatado = formatarTelefone(e.target.value);
+    setTelefone(valorFormatado);
+  };
+
   // ETAPA 1: Validar Telefone na BD
   const lidarComTelefone = async (e) => {
     e.preventDefault();
+    
+    // Limpa os espaços antes de enviar para a BD
+    const telefoneLimpo = telefone.replace(/\s/g, '');
+
     try {
       const response = await fetch(`http://localhost:3000/api/auth/verificar-telefone`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ telefone })
+        body: JSON.stringify({ telefone: telefoneLimpo })
       });
 
       if (response.ok) {
-        setEtapa(2); // Avança para a aba do código
+        setEtapa(2);
       } else {
         const resultado = await response.json();
-        alert(resultado.error || "n incorreto");
+        alert(resultado.error || "Número incorreto");
       }
     } catch (error) {
       alert("Erro ao ligar ao servidor.");
     }
   };
 
-  // ETAPA 2: Apenas visual (avança com qualquer código)
+  // ETAPA 2: Apenas visual
   const lidarComCodigo = (e) => {
     e.preventDefault();
-    setEtapa(3); // Avança para a nova password
+    setEtapa(3);
   };
 
   // ETAPA 3: Alteração Final
   const confirmarAlteracao = async (e) => {
     e.preventDefault();
 
-    // Validação de segurança
     const regexEspecial = /[!@#$%^&*(),.?":{}|<>]/;
     if (novaPassword.length < 8 || !regexEspecial.test(novaPassword)) {
         alert("A password deve ter pelo menos 8 caracteres e um símbolo especial.");
@@ -51,18 +70,20 @@ export default function RecoverPassword({ irParaLogin, irParaLanding }) {
     }
 
     try {
+        const telefoneLimpo = telefone.replace(/\s/g, '');
+
         const response = await fetch('http://localhost:3000/api/auth/reset-password', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ 
-                telefone: telefone, // O número que o utilizador digitou na Etapa 1
+                telefone: telefoneLimpo, 
                 novaPassword: novaPassword 
             })
         });
 
         if (response.ok) {
             alert("Password alterada com Sucesso!");
-            irParaLogin(); // Volta para o ecrã de login
+            irParaLogin();
         } else {
             const erro = await response.json();
             alert(erro.error || "Erro ao atualizar a base de dados.");
@@ -96,16 +117,22 @@ export default function RecoverPassword({ irParaLogin, irParaLanding }) {
             </h2>
           </header>
 
-          {/* FORMULÁRIO DINÂMICO */}
           {etapa === 1 && (
             <form onSubmit={lidarComTelefone}>
               <div className="input-container">
                 <label>Nº de Telefone</label>
-                <div className="input-tel-wrapper">
-                  <span className="tel-prefix">
-                    <img src="https://flagcdn.com/w20/pt.png" alt="PT" className="tel-flag" /> +351
+                <div className="input-tel-wrapper" style={{ display: 'flex', alignItems: 'center' }}>
+                  <span className="tel-prefix" style={{ marginRight: '10px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                    <img src="https://flagcdn.com/w20/pt.png" alt="PT" className="tel-flag" /> 
+                    +351
                   </span>
-                  <input type="tel" value={telefone} onChange={(e) => setTelefone(e.target.value)} pattern="[0-9]{9}" required />
+                  <input 
+                    type="tel" 
+                    value={telefone} 
+                    onChange={handleTelefoneChange} 
+                    placeholder="912 345 678"
+                    required 
+                  />
                 </div>
               </div>
               <button type="submit" className="btn-login">Verificar Número</button>

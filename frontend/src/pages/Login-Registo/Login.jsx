@@ -24,7 +24,7 @@ export default function Login({ irParaRegisto, irParaLanding, irParaRecuperar })
 
       if (response.ok) {
         localStorage.setItem('viva_user', JSON.stringify(resultado.user));
-        alert(`Bem-vindo de volta !`);
+        alert(`Bem-vindo!`);
         irParaLanding(); 
       } else {
         alert(resultado.error || "Dados de acesso incorretos.");
@@ -84,7 +84,8 @@ export default function Login({ irParaRegisto, irParaLanding, irParaRecuperar })
               />
             </div>
 
-            <div className="input-container">
+            {/* Ajuste de margem aqui para não afastar demasiado o link */}
+            <div className="input-container" style={{ marginBottom: '5px' }}>
               <label>Palavra-passe</label>
               <input 
                 type="password" 
@@ -93,12 +94,13 @@ export default function Login({ irParaRegisto, irParaLanding, irParaRecuperar })
                 placeholder="A sua senha" 
                 required 
               />
-              {/* Link de Recuperação adicionado aqui */}
-              <div className="forgot-password-link">
-                <a href="#" onClick={(e) => { e.preventDefault(); irParaRecuperar(); }}>
-                  Esqueceu-se da palavra-passe?
-                </a>
-              </div>
+            </div>
+            
+            {/* O link agora está fora da caixa da password */}
+            <div className="forgot-password-link">
+              <a href="#" onClick={(e) => { e.preventDefault(); irParaRecuperar(); }}>
+                Esqueceu-se da palavra-passe?
+              </a>
             </div>
 
             <button type="submit" className="btn-login">Entrar</button>

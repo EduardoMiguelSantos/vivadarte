@@ -1,15 +1,20 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import './Landing.css';
 import logoImg from '../../assets/logo.png';
-import instagramIcon from '../../assets/instagram.png';
-import facebookIcon from '../../assets/facebook.png';
 
-export default function Landing({ irParaLogin, irParaRegisto }) {
+export default function Landing({ irParaLogin, irParaRegisto, irParaVendaFigurinos }) {
   const [utilizador, setUtilizador] = useState(null);
+  const [modoPortal, setModoPortal] = useState(false);
+
+  const modalidadesRef = useRef(null);
+  const professoresRef = useRef(null);
 
   useEffect(() => {
     const userGuardado = localStorage.getItem('viva_user');
-    if (userGuardado) setUtilizador(JSON.parse(userGuardado));
+    if (userGuardado) {
+      setUtilizador(JSON.parse(userGuardado));
+      setModoPortal(true);
+    }
     document.title = "Viva D'arte | Escola de Dança";
   }, []);
 
@@ -17,6 +22,30 @@ export default function Landing({ irParaLogin, irParaRegisto }) {
     localStorage.removeItem('viva_user');
     setUtilizador(null);
     window.location.reload();
+  };
+
+  const handleIrParaInicio = (e) => {
+    if (e) e.preventDefault();
+    setModoPortal(false); 
+    
+    window.history.replaceState(null, '', window.location.pathname);
+    
+    const heroSection = document.getElementById('inicio');
+    if (heroSection) {
+      heroSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    } else {
+      window.scrollTo({ top: 0, left: 0, behavior: 'smooth' });
+    }
+  };
+
+  const scrollCarrossel = (ref, direcao, tipo) => {
+    if (ref.current) {
+      const scrollAmount = tipo === 'unico' ? ref.current.clientWidth : 420; 
+      ref.current.scrollBy({ 
+        left: direcao === 'esquerda' ? -scrollAmount : scrollAmount, 
+        behavior: 'smooth' 
+      });
+    }
   };
 
   return (
@@ -28,23 +57,55 @@ export default function Landing({ irParaLogin, irParaRegisto }) {
           <span>VIVA D'ARTE</span>
         </div>
         
-        {/* ORDEM CORRIGIDA AQUI */}
         <ul className="nav-menu">
-        <li><a href="#inicio" onClick={(e) => { e.preventDefault(); window.scrollTo({ top: 0, behavior: 'smooth' }); document.documentElement.scrollIntoView({ behavior: 'smooth', block: 'start' }); }}>Início</a></li>
-        <li><a href="#sobre">Sobre Nós</a></li>
-        <li><a href="#modalidades">Modalidades</a></li>
-        <li><a href="#professores">Professores</a></li>
-        
-        {/* Links Privados (Só aparecem após Iniciar Sessão) */}
-        {utilizador && (
-          <>
-            <li className="nav-separator">|</li>
-            <li><a href="#agendar" className="special-link">Agendar</a></li>
-            <li><a href="#figurinos" className="special-link">Figurinos</a></li>
-            <li><a href="#emprestimos" className="special-link">Empréstimos</a></li> {/* <--- NOVA LINHA AQUI */}
-          </>
-        )}
-      </ul>
+          <li>
+            <a href="#inicio" onClick={handleIrParaInicio}>Início</a>
+          </li>
+
+          {!utilizador ? (
+            <>
+              <li><a href="#sobre">Sobre Nós</a></li>
+              <li><a href="#modalidades">Modalidades</a></li>
+              <li><a href="#professores">Professores</a></li>
+            </>
+          ) : !modoPortal ? (
+            <>
+              <li><a href="#sobre">Sobre Nós</a></li>
+              <li><a href="#modalidades">Modalidades</a></li>
+              <li><a href="#professores">Professores</a></li>
+              
+              <li className="nav-separator">|</li>
+              <li className="student-menu-group" onClick={(e) => {
+                  e.preventDefault();
+                  setModoPortal(true);
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}>
+                <div className="student-menu-bg" style={{ cursor: 'pointer', padding: '8px 20px' }}>
+                  <a href="#portal" className="student-link" onClick={(e) => e.preventDefault()}>
+                    Portal do {utilizador.perfil === 'Professor' ? 'Professor' : 'EE'}
+                  </a>
+                </div>
+              </li>
+            </>
+          ) : (
+            <>
+              <li className="nav-separator">|</li>
+              {utilizador.perfil === 'Professor' ? (
+                <>
+                  <li><a href="#coachings" className="special-link">Coaching Agendados</a></li>
+                  <li><a href="#emprestimos" className="special-link">Empréstimos de peças</a></li>
+                  <li><a href="#figurinos" className="special-link" onClick={(e) => { e.preventDefault(); irParaVendaFigurinos(); }}>Venda de figurinos</a></li>
+                </>
+              ) : (
+                <>
+                  <li><a href="#coachings" className="special-link">Agendar Coaching</a></li>
+                  <li><a href="#emprestimos" className="special-link">Empréstimos de peças</a></li>
+                  <li><a href="#figurinos" className="special-link" onClick={(e) => { e.preventDefault(); irParaVendaFigurinos(); }}>Venda de figurinos</a></li>
+                </>
+              )}
+            </>
+          )}
+        </ul>
 
         <div className="nav-actions">
           {utilizador ? (
@@ -66,7 +127,6 @@ export default function Landing({ irParaLogin, irParaRegisto }) {
         <div className="hero-content">
           <h1>A Arte de Dançar <br/> <span className="text-highlight">Começa Aqui.</span></h1>
           <p>Explora o teu talento na escola de dança mais vibrante. Acompanha o teu percurso de forma simples.</p>
-          {!utilizador && <button className="btn-hero" onClick={irParaRegisto}>Começar Agora ✨</button>}
         </div>
       </header>
 
@@ -84,63 +144,97 @@ export default function Landing({ irParaLogin, irParaRegisto }) {
         </div>
       </section>
 
-      {/* 3. MODALIDADES (Estilo Retangular) */}
+      {/* 3. MODALIDADES */}
       <section id="modalidades" className="section-container bg-light">
         <div className="section-header">
           <h2>Modalidades</h2>
           <p>Descobre o estilo que faz o teu coração vibrar.</p>
         </div>
-        <div className="list-vertical">
-          <div className="horizontal-card">
-            <div className="card-left">
-              <div className="mod-icon">🩰</div>
+        
+        <div className="carousel-wrapper">
+          <button className="carousel-btn left" onClick={() => scrollCarrossel(modalidadesRef, 'esquerda', 'multiplo')}>&#8249;</button>
+          
+          <div className="carousel-container" ref={modalidadesRef}>
+            <div className="modalidade-card">
+              <div className="modalidade-left">
+                <span className="emoji-gigante">🩰</span>
+              </div>
+              <div className="modalidade-right">
+                <span className="subtitle">Técnica e Elegância</span>
+                <p>A base de todas as danças, focada na postura, flexibilidade e disciplina artística para alunos de todas as idades.</p>
+              </div>
             </div>
-            <div className="card-right">
-              <h3>Ballet Clássico</h3>
-              <span className="subtitle">Técnica e Elegância</span>
-              <p>A base de todas as danças, focada na postura, flexibilidade e disciplina artística para alunos de todas as idades.</p>
+
+            <div className="modalidade-card">
+              <div className="modalidade-left">
+                <span className="emoji-gigante">👟</span>
+              </div>
+              <div className="modalidade-right">
+                <span className="subtitle">Ritmo e Atitude</span>
+                <p>Explora a cultura urbana através de coreografias dinâmicas, focadas em groove, coordenação e muita energia.</p>
+              </div>
+            </div>
+
+            <div className="modalidade-card">
+              <div className="modalidade-left">
+                <span className="emoji-gigante">💃</span>
+              </div>
+              <div className="modalidade-right">
+                <span className="subtitle">Expressão Livre</span>
+                <p>Movimentos fluidos e expressão corporal que quebram as barreiras do estilo clássico, conectando corpo e mente.</p>
+              </div>
             </div>
           </div>
-          <div className="horizontal-card">
-            <div className="card-left">
-              <div className="mod-icon">👟</div>
-            </div>
-            <div className="card-right">
-              <h3>Hip Hop</h3>
-              <span className="subtitle">Ritmo e Atitude</span>
-              <p>Explora a cultura urbana através de coreografias dinâmicas, focadas em groove, coordenação e muita energia.</p>
-            </div>
-          </div>
+
+          <button className="carousel-btn right" onClick={() => scrollCarrossel(modalidadesRef, 'direita', 'multiplo')}>&#8250;</button>
         </div>
       </section>
 
-      {/* 4. PROFESSORES (Estilo Retangular) */}
+      {/* 4. PROFESSORES */}
       <section id="professores" className="section-container">
         <div className="section-header">
           <h2>Os Nossos Professores</h2>
         </div>
-        <div className="list-vertical">
-          <div className="horizontal-card">
-            <div className="card-left">
-               <div className="prof-avatar" style={{ backgroundImage: "url('https://images.unsplash.com/photo-1547152382-1611bc086830?q=80&w=200')" }}></div>
+
+        <div className="carousel-wrapper">
+          <button className="carousel-btn left" onClick={() => scrollCarrossel(professoresRef, 'esquerda', 'unico')}>&#8249;</button>
+          
+          <div className="carousel-container single-item" ref={professoresRef}>
+            <div className="horizontal-card">
+              <div className="card-left">
+                 <div className="prof-avatar" style={{ backgroundImage: "url('https://images.unsplash.com/photo-1547152382-1611bc086830?q=80&w=200')" }}></div>
+              </div>
+              <div className="card-right">
+                <h3>Ana Silva</h3>
+                <span className="subtitle">Ballet Clássico</span>
+                <p>Formada pelo Conservatório Real, a Ana traz 10 anos de experiência internacional para as nossas salas, focando-se na precisão técnica e no bem-estar dos alunos.</p>
+              </div>
             </div>
-            <div className="card-right">
-              <h3>Ana Silva</h3>
-              <span className="subtitle">Ballet Clássico</span>
-              <p>Formada pelo Conservatório Real, a Ana traz 10 anos de experiência internacional para as nossas salas, focando-se na precisão técnica e no bem-estar dos alunos.</p>
+
+            <div className="horizontal-card">
+              <div className="card-left">
+                 <div className="prof-avatar" style={{ backgroundImage: "url('https://images.unsplash.com/photo-1506803682981-6e718a9dd3ee?q=80&w=200')" }}></div>
+              </div>
+              <div className="card-right">
+                <h3>Carlos Mendes</h3>
+                <span className="subtitle">Hip Hop & Dança Urbana</span>
+                <p>Com atuações nos maiores palcos da Europa, o Carlos transmite a sua energia contagiante e técnica apurada a todos os que entram na sua aula.</p>
+              </div>
             </div>
           </div>
+
+          <button className="carousel-btn right" onClick={() => scrollCarrossel(professoresRef, 'direita', 'unico')}>&#8250;</button>
         </div>
       </section>
 
-      {/* --- FOOTER (Estrutura restaurada, apenas imagens nas redes) --- */}
+      {/* --- FOOTER COMPACTO --- */}
       <footer className="main-footer">
         <div className="footer-container">
           <div className="footer-column">
             <h3>Contacto</h3>
             <ul className="footer-info">
-              <li><span>📍</span> Rua das Artes, nº 123, Lisboa</li>
-              <li><span>📞</span> +351 912 345 678</li>
+              <li><span>📍</span> Rua das Artes, nº 123, Braga</li>
+              <li><span>📞</span> +351 000 000 000</li>
               <li><span>✉️</span> geral@vivadarte.pt</li>
             </ul>
           </div>
@@ -156,10 +250,29 @@ export default function Landing({ irParaLogin, irParaRegisto }) {
 
           <div className="footer-column">
             <h3>Redes Sociais</h3>
-            {/* Apenas as imagens, sem texto */}
             <div className="social-icons-only">
-              <a href="#"><img src={instagramIcon} alt="Instagram" /></a>
-              <a href="#"><img src={facebookIcon} alt="Facebook" /></a>
+              <a 
+                href="https://www.instagram.com/" 
+                target="_blank" 
+                rel="noopener noreferrer" 
+                aria-label="Instagram"
+              >
+                <svg viewBox="0 0 24 24" className="social-svg" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect>
+                  <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path>
+                  <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line>
+                </svg>
+              </a>
+              <a 
+                href="https://www.facebook.com/" 
+                target="_blank" 
+                rel="noopener noreferrer" 
+                aria-label="Facebook"
+              >
+                <svg viewBox="0 0 24 24" className="social-svg" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"></path>
+                </svg>
+              </a>
             </div>
           </div>
         </div>

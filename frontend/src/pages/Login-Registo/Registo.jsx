@@ -13,11 +13,25 @@ export default function Registo({ irParaLogin, irParaLanding }) {
   useEffect(() => {
     document.title = "Criar Conta | Viva D'arte";
   }, []);
+
+  // Função para formatar o telefone como 999 999 999 enquanto digita
+  const handleTelefoneChange = (e) => {
+    let valor = e.target.value.replace(/\D/g, ''); // Remove tudo o que não é número
+    
+    // Aplica a formatação visual
+    if (valor.length > 6) {
+      valor = `${valor.substring(0, 3)} ${valor.substring(3, 6)} ${valor.substring(6, 9)}`;
+    } else if (valor.length > 3) {
+      valor = `${valor.substring(0, 3)} ${valor.substring(3, 6)}`;
+    }
+    
+    setTelefone(valor.substring(0, 11)); // Limita ao tamanho máximo com espaços
+  };
   
   const lidarComRegisto = async (e) => {
     e.preventDefault();
 
-    // Validação de Frontend (Feedback rápido para o utilizador)
+    // Validação de Frontend
     const regexEspecial = /[!@#$%^&*(),.?":{}|<>]/;
     
     if (password.length < 8) {
@@ -30,11 +44,20 @@ export default function Registo({ irParaLogin, irParaLanding }) {
         return;
     }
 
+    // Limpa os espaços do telefone antes de enviar para o servidor
+    const telefoneLimpo = telefone.replace(/\s/g, '');
+
     try {
         const response = await fetch('http://localhost:3000/api/auth/register', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ nome, email, telefone, password, tipo })
+            body: JSON.stringify({ 
+              nome, 
+              email, 
+              telefone: telefoneLimpo, 
+              password, 
+              tipo 
+            })
         });
 
         const resultado = await response.json();
@@ -43,7 +66,6 @@ export default function Registo({ irParaLogin, irParaLanding }) {
             alert("Conta criada com sucesso! ✨");
             irParaLogin();
         } else {
-            // Aqui ele vai mostrar "Email já em uso" ou o erro de validação do backend
             alert(resultado.error || "Erro ao criar conta.");
         }
     } catch (error) {
@@ -114,18 +136,22 @@ export default function Registo({ irParaLogin, irParaLanding }) {
 
             <div className="input-container">
               <label>Nº de Telefone</label>
-              <div className="input-tel-wrapper">
-                <span className="tel-prefix">
+              <div className="input-tel-wrapper" style={{ display: 'flex', alignItems: 'center' }}>
+                <span className="tel-prefix" style={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: '8px', 
+                  marginRight: '12px' 
+                }}>
                   <img src="https://flagcdn.com/w20/pt.png" alt="PT" className="tel-flag" />
-                  +351
+                  <span>+351</span>
                 </span>
                 <input 
                   type="tel" 
                   className="input-with-prefix"
                   placeholder="912 345 678" 
                   value={telefone}
-                  onChange={(e) => setTelefone(e.target.value)}
-                  pattern="[0-9]{9}" 
+                  onChange={handleTelefoneChange}
                   required 
                 />
               </div>
