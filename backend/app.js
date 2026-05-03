@@ -6,6 +6,7 @@ const { poolConnect } = require('./src/config/db');
 const authRoutes = require('./src/routes/authRoutes');
 const userRoutes = require('./src/routes/userRoutes');
 const vendaRoutes = require('./src/routes/vendaRoutes');
+const coachingRoutes = require('./src/routes/coachingRoutes');
 const errorHandler = require('./src/middlewares/errorHandler');
 
 const app = express();
@@ -34,6 +35,7 @@ app.get('/api/health', (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/vendas', vendaRoutes);
+app.use('/api/coaching', coachingRoutes);
 
 // Tratamento de Erros (sempre no fim)
 app.use(errorHandler);
