@@ -92,7 +92,7 @@ async function listarTodosUtilizadores() {
 /**
  * Cria um novo utilizador e associa-o a um perfil dentro de uma transação.
  */
-async function criarUtilizador({ nome, email, passwordHash, telefone, nomePerfil, tipo }) {
+async function criarUtilizador({ nome, email, passwordHash, telefone, nomePerfil }) {
     const pool = await poolPromise;
     const transaction = pool.transaction();
     await transaction.begin();
