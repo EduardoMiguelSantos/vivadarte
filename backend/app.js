@@ -4,8 +4,9 @@ require('dotenv').config();
 
 const { poolConnect } = require('./src/config/db');
 const authRoutes = require('./src/routes/authRoutes');
+const userRoutes = require('./src/routes/userRoutes');
+const vendaRoutes = require('./src/routes/vendaRoutes');
 const errorHandler = require('./src/middlewares/errorHandler');
-
 
 const app = express();
 
@@ -31,6 +32,8 @@ app.get('/api/health', (req, res) => {
 
 // Definição de Rotas
 app.use('/api/auth', authRoutes);
+app.use('/api/users', userRoutes);
+app.use('/api/vendas', vendaRoutes);
 
 // Tratamento de Erros (sempre no fim)
 app.use(errorHandler);
