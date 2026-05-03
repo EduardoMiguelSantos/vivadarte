@@ -12,4 +12,10 @@ router.get('/pedidos/pendentes', pedidoController.listarPedidos);
 router.get('/agenda', coachingController.consultarAgenda);
 router.post('/aprovar', coachingController.aprovarCoaching);
 
+// Nova rota do Professor
+router.get('/professor/:id_professor', coachingController.listarPedidosProfessor);
+
+// Usamos PATCH porque estamos apenas a modificar uma pequena parte (o estado) de um registo que já existe
+router.patch('/decisao/:id_pedido', coachingController.decidirPedido);
+
 module.exports = router;

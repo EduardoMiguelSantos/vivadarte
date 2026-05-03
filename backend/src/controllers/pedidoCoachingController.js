@@ -16,15 +16,22 @@ const consultarVagas = async (req, res) => {
 
 const criarPedido = async (req, res) => {
     try {
-        const { 
-            id_utilizador_cliente, id_modalidade, id_professor_preferencial, 
-            data_sugerida, hora_sugerida, formato_aula, objetivos, alunosIds 
-        } = req.body;
+        // TRUQUE: Tenta apanhar os nomes novos do SQL. Se não existirem, usa os nomes antigos do Frontend.
+        const dataAula = req.body.data_aula_pretendida || req.body.data_sugerida;
+        const horaInicio = req.body.hora_inicio_pretendida || req.body.hora_sugerida;
+        const idAluno = req.body.UTILIZADORid_utilizador || req.body.id_utilizador_cliente;
+        const idProfessor = req.body.UTILIZADORid_utilizador2 || req.body.id_professor_preferencial;
+        const idModalidade = req.body.MODALIDADEid_modalidade || req.body.id_modalidade;
+        
+        // Se a hora não vier em nenhum dos formatos, paramos tudo e avisamos!
+        if (!horaInicio) {
+            return res.status(400).json({ erro: 'A hora é obrigatória no formato hora_inicio_pretendida ou hora_sugerida.' });
+        }
 
         // TRATAMENTO DA HORA: Se não tiver segundos, nós acrescentamos
-        const horaFormatada = hora_sugerida.split(':').length === 2 
-            ? `${hora_sugerida}:00` 
-            : hora_sugerida;
+        const horaFormatada = horaInicio.split(':').length === 2 
+            ? `${horaInicio}:00` 
+            : horaInicio;
 
         // Criamos um objeto Date para a hora, que o mssql aceita melhor para sql.Time
         const [h, m, s] = horaFormatada.split(':');
@@ -32,18 +39,18 @@ const criarPedido = async (req, res) => {
         dataHoraObj.setHours(h, m, s, 0);
 
         const dadosPedido = { 
-            idEncarregado: id_utilizador_cliente,
-            idModalidade: id_modalidade,
-            idProfessor: id_professor_preferencial,
-            dataAula: data_sugerida, 
-            horaInicio: dataHoraObj, // Passamos o objeto Date em vez de string
-            formatoAula: formato_aula,
-            duracaoMinutos: 60,
+            idEncarregado: idAluno,
+            idModalidade: idModalidade,
+            idProfessor: idProfessor,
+            dataAula: dataAula, 
+            horaInicio: dataHoraObj, 
+            formatoAula: req.body.formato_aula,
+            duracaoMinutos: req.body.duracao_minutos || 60,
             custoEstimado: 25.00,
-            idAnoLetivo: 1 // Garante que este ID existe na BD do Eduardo!
+            idAnoLetivo: req.body.ANO_LETIVOid_ano_letivo || 1
         };
 
-        const idPedido = await CoachingModel.criarPedidoCoaching(dadosPedido, alunosIds);
+        const idPedido = await CoachingModel.criarPedidoCoaching(dadosPedido, req.body.alunosIds || []);
         return res.status(201).json({ mensagem: 'Pedido submetido!', id_pedido: idPedido });
     } catch (erro) {
         console.error('Erro detalhado:', erro);
