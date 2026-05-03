@@ -6,6 +6,7 @@ const { poolConnect } = require('./src/config/db');
 const authRoutes = require('./src/routes/authRoutes');
 const errorHandler = require('./src/middlewares/errorHandler');
 
+
 const app = express();
 
 // Middleware

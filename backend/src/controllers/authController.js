@@ -85,7 +85,7 @@ async function login(req, res, next) {
             return res.status(400).json({ error: 'email, password e tipo são obrigatórios' });
         }
 
-        const perfilId = tipo === 'EE' ? 2 : 3;
+        const perfilId = tipo === 'EE' ? 3 : 2;
         const request = pool.request();
 
         request.input('email', email);

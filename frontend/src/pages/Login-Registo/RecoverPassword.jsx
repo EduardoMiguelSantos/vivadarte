@@ -70,7 +70,6 @@ export default function RecoverPassword({ irParaLogin, irParaLanding }) {
     }
 
     try {
-        // Limpa os espaços antes de enviar para a BD
         const telefoneLimpo = telefone.replace(/\s/g, '');
 
         const response = await fetch('http://localhost:3000/api/auth/reset-password', {
