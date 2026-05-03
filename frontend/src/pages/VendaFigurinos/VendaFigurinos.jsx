@@ -37,6 +37,7 @@ export default function VendaFigurinos({ irParaLanding }) {
       setUtilizador(JSON.parse(userGuardado));
     }
     setFigurinos([]);
+    document.title = "Venda de Figurinos | Escola de Dança";
   }, []);
 
   const handleLogout = () => {
