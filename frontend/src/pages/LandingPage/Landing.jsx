@@ -233,8 +233,8 @@ export default function Landing({ irParaLogin, irParaRegisto, irParaVendaFigurin
           <div className="footer-column">
             <h3>Contacto</h3>
             <ul className="footer-info">
-              <li><span>📍</span> Rua das Artes, nº 123, Lisboa</li>
-              <li><span>📞</span> +351 912 345 678</li>
+              <li><span>📍</span> Rua das Artes, nº 123, Braga</li>
+              <li><span>📞</span> +351 000 000 000</li>
               <li><span>✉️</span> geral@vivadarte.pt</li>
             </ul>
           </div>
