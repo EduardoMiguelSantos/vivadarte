@@ -276,6 +276,137 @@ async function criarPedidoCoaching(dadosPedido, alunosIds) {
         throw error;
     }
 }
+
+/**
+ * Pedidos de coaching criados por um encarregado.
+ */
+async function getPedidosPorEncarregado(idEncarregado) {
+    try {
+        const pool = await poolPromise;
+        const result = await pool
+            .request()
+            .input('IdEE', sql.Int, idEncarregado)
+            .query(`
+                SELECT 
+                    pc.id_pedido_coaching,
+                    pc.formato_aula,
+                    pc.duracao_minutos,
+                    pc.data_aula_pretendida,
+                    pc.hora_inicio_pretendida,
+                    pc.estado,
+                    pc.custo_estimado,
+                    m.nome AS modalidade,
+                    prof.nome AS professor
+                FROM PEDIDO_COACHING pc
+                JOIN MODALIDADE m ON pc.MODALIDADEid_modalidade = m.id_modalidade
+                LEFT JOIN UTILIZADOR prof ON pc.UTILIZADORid_utilizador2 = prof.id_utilizador
+                WHERE pc.UTILIZADORid_utilizador = @IdEE
+                ORDER BY pc.data_pedido DESC, pc.id_pedido_coaching DESC;
+            `);
+
+        return result.recordset;
+    } catch (error) {
+        console.error('Erro no Modelo (getPedidosPorEncarregado):', error);
+        throw error;
+    }
+}
+
+/**
+ * Cancela um pedido pendente do próprio encarregado.
+ * @returns {'cancelado'|'nao_encontrado'|'nao_pendente'}
+ */
+async function cancelarPedidoPendenteEncarregado(idPedido, idEncarregado) {
+    try {
+        const pool = await poolPromise;
+
+        const upd = await pool
+            .request()
+            .input('IdPedido', sql.Int, idPedido)
+            .input('IdEE', sql.Int, idEncarregado)
+            .query(`
+                UPDATE PEDIDO_COACHING
+                SET estado = 'Cancelado'
+                WHERE id_pedido_coaching = @IdPedido
+                  AND UTILIZADORid_utilizador = @IdEE
+                  AND estado = 'Pendente';
+            `);
+
+        if (upd.rowsAffected[0] > 0) return 'cancelado';
+
+        const check = await pool
+            .request()
+            .input('IdPedido', sql.Int, idPedido)
+            .input('IdEE', sql.Int, idEncarregado)
+            .query(`
+                SELECT estado FROM PEDIDO_COACHING
+                WHERE id_pedido_coaching = @IdPedido AND UTILIZADORid_utilizador = @IdEE;
+            `);
+
+        if (check.recordset.length === 0) return 'nao_encontrado';
+        return 'nao_pendente';
+    } catch (error) {
+        console.error('Erro no Modelo (cancelarPedidoPendenteEncarregado):', error);
+        throw error;
+    }
+}
+
+/**
+ * Pedidos em que o utilizador é o professor indicado.
+ */
+async function getPedidosAtribuidosAoProfessor(idProfessor) {
+    try {
+        const pool = await poolPromise;
+        const result = await pool
+            .request()
+            .input('IdProf', sql.Int, idProfessor)
+            .query(`
+                SELECT 
+                    pc.id_pedido_coaching,
+                    pc.data_aula_pretendida,
+                    pc.hora_inicio_pretendida,
+                    pc.formato_aula,
+                    pc.estado,
+                    pc.custo_estimado,
+                    m.nome AS modalidade,
+                    ee.nome AS encarregado,
+                    ee.email AS email_encarregado
+                FROM PEDIDO_COACHING pc
+                JOIN UTILIZADOR ee ON pc.UTILIZADORid_utilizador = ee.id_utilizador
+                JOIN MODALIDADE m ON pc.MODALIDADEid_modalidade = m.id_modalidade
+                WHERE pc.UTILIZADORid_utilizador2 = @IdProf
+                ORDER BY pc.data_aula_pretendida ASC;
+            `);
+
+        return result.recordset;
+    } catch (error) {
+        console.error('Erro no Modelo (getPedidosAtribuidosAoProfessor):', error);
+        throw error;
+    }
+}
+
+/**
+ * True se o coaching existe, o professor é o titular e não está cancelado.
+ */
+async function coachingPertenceAProfessorAtivo(idCoaching, idProfessor) {
+    try {
+        const pool = await poolPromise;
+        const result = await pool
+            .request()
+            .input('IdCoaching', sql.Int, idCoaching)
+            .input('IdProf', sql.Int, idProfessor)
+            .query(`
+                SELECT 1 AS ok FROM COACHING
+                WHERE id_coaching = @IdCoaching
+                  AND UTILIZADORid_utilizador = @IdProf
+                  AND estado NOT IN ('Cancelado');
+            `);
+
+        return result.recordset.length > 0;
+    } catch (error) {
+        console.error('Erro no Modelo (coachingPertenceAProfessorAtivo):', error);
+        throw error;
+    }
+}
  
 /**
  * Lista todos os pedidos pendentes para a Coordenação tratar. (US06 / RF07)
@@ -588,6 +719,10 @@ module.exports = {
     getDisponibilidadeEfetiva,
     getAgendaProfessor,
     criarPedidoCoaching,
+    getPedidosPorEncarregado,
+    cancelarPedidoPendenteEncarregado,
+    getPedidosAtribuidosAoProfessor,
+    coachingPertenceAProfessorAtivo,
     getPedidosPendentes,
     aprovarEAgendarCoaching,
     rejeitarPedidoCoaching,

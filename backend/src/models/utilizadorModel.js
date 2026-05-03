@@ -55,6 +55,83 @@ async function getPerfisDoUtilizador(idUtilizador) {
         throw error;
     }
 }
+
+/**
+ * Utilizador ativo com o perfil indicado (login com email + tipo EE/PROF).
+ * Devolve a password para comparação com bcrypt no controlador.
+ */
+async function getUtilizadorParaLogin(email, idPerfil) {
+    try {
+        const pool = await poolPromise;
+        const result = await pool
+            .request()
+            .input('Email', sql.VarChar(255), email)
+            .input('IdPerfil', sql.Int, idPerfil)
+            .query(`
+                SELECT 
+                    u.id_utilizador,
+                    u.nome,
+                    u.email,
+                    u.telefone,
+                    u.password
+                FROM UTILIZADOR u
+                INNER JOIN UTILIZADOR_PERFIL up ON u.id_utilizador = up.UTILIZADORid_utilizador
+                WHERE u.email = @Email
+                  AND up.PERFILid_perfil = @IdPerfil
+                  AND u.ativo = 1;
+            `);
+
+        return result.recordset[0] || null;
+    } catch (error) {
+        console.error('Erro no Modelo (getUtilizadorParaLogin):', error);
+        throw error;
+    }
+}
+
+/**
+ * Verifica se existe utilizador ativo com este telefone (recuperação de password).
+ */
+async function existeUtilizadorTelefoneAtivo(telefone) {
+    try {
+        const pool = await poolPromise;
+        const result = await pool
+            .request()
+            .input('Telefone', sql.VarChar(30), telefone)
+            .query(`
+                SELECT 1 AS ok
+                FROM UTILIZADOR
+                WHERE telefone = @Telefone AND ativo = 1;
+            `);
+
+        return result.recordset.length > 0;
+    } catch (error) {
+        console.error('Erro no Modelo (existeUtilizadorTelefoneAtivo):', error);
+        throw error;
+    }
+}
+
+/**
+ * Atualiza a password pelo número de telefone (utilizador ativo).
+ */
+async function atualizarPasswordPorTelefone(telefone, passwordHash) {
+    try {
+        const pool = await poolPromise;
+        const result = await pool
+            .request()
+            .input('Telefone', sql.VarChar(30), telefone)
+            .input('Password', sql.VarChar(255), passwordHash)
+            .query(`
+                UPDATE UTILIZADOR
+                SET password = @Password
+                WHERE telefone = @Telefone AND ativo = 1;
+            `);
+
+        return result.rowsAffected[0] || 0;
+    } catch (error) {
+        console.error('Erro no Modelo (atualizarPasswordPorTelefone):', error);
+        throw error;
+    }
+}
  
 // ============================================================================
 // 2. GESTÃO DE CONTAS PELO ADMIN (US03 / RF03)
@@ -110,6 +187,7 @@ async function criarUtilizador({ nome, email, passwordHash, telefone, nomePerfil
 
         if (!idPerfil && tipo) {
             const tipoNormalizado = String(tipo).toUpperCase();
+            if (tipoNormalizado === 'ADMIN') idPerfil = 1;
             if (tipoNormalizado === 'EE') idPerfil = 2;
             if (tipoNormalizado === 'PROF') idPerfil = 3;
         }
@@ -342,6 +420,9 @@ async function getAlunosPorEncarregado(idEncarregado) {
 module.exports = {
     getUtilizadorByEmail,
     getPerfisDoUtilizador,
+    getUtilizadorParaLogin,
+    existeUtilizadorTelefoneAtivo,
+    atualizarPasswordPorTelefone,
     listarTodosUtilizadores,
     criarUtilizador,
     editarUtilizador,

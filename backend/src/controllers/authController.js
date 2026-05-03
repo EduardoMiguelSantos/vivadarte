@@ -1,7 +1,6 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const userModel = require('../models/utilizadorModel');
-const { pool, poolConnect } = require('../config/db');
 
 const PERFIL_MAP = {
     EE: 'EE',
@@ -10,6 +9,15 @@ const PERFIL_MAP = {
 
 function mapTipoParaPerfil(tipo) {
     return PERFIL_MAP[tipo] || null;
+}
+
+/** IDs alinhados com a tabela PERFIL (Admin=1, EE=2, Professor=3). */
+function mapTipoParaPerfilId(tipo) {
+    const t = String(tipo || '').toUpperCase();
+    if (t === 'ADMIN') return 1;
+    if (t === 'EE') return 2;
+    if (t === 'PROF') return 3;
+    return null;
 }
 
 function gerarToken(utilizador) {
@@ -85,37 +93,39 @@ async function login(req, res, next) {
             return res.status(400).json({ error: 'email, password e tipo são obrigatórios' });
         }
 
-        const perfilId = tipo === 'EE' ? 2 : 3;
-        const request = pool.request();
+        const perfilId = mapTipoParaPerfilId(tipo);
+        if (!perfilId) {
+            return res.status(400).json({ error: 'tipo inválido. Use EE, PROF ou ADMIN' });
+        }
 
-        request.input('email', email);
-        request.input('perfilId', perfilId);
-
-        const result = await request.query(`
-            SELECT U.*, U.[password] AS password_hash, P.nome as perfil_nome
-            FROM [dbo].[UTILIZADOR] U
-            JOIN [dbo].[UTILIZADOR_PERFIL] UP ON U.id_utilizador = UP.UTILIZADORid_utilizador
-            JOIN [dbo].[PERFIL] P ON UP.PERFILid_perfil = P.id_perfil
-            WHERE U.email = @email
-              AND UP.PERFILid_perfil = @perfilId
-              AND U.ativo = 1
-        `);
-
-        if (result.recordset.length === 0) {
+        const utilizador = await userModel.getUtilizadorParaLogin(email, perfilId);
+        if (!utilizador) {
             return res.status(401).json({ error: 'Email ou palavra-passe incorretos.' });
         }
 
-        const utilizador = result.recordset[0];
-        const passwordValida = await bcrypt.compare(password, utilizador.password_hash);
+        const passwordValida = await bcrypt.compare(password, utilizador.password);
         if (!passwordValida) {
             return res.status(401).json({ error: 'Email ou palavra-passe incorretos.' });
         }
 
+        const perfis = await userModel.getPerfisDoUtilizador(utilizador.id_utilizador);
+        const token = gerarToken({
+            id_utilizador: utilizador.id_utilizador,
+            nome: utilizador.nome,
+            email: utilizador.email,
+            telefone: utilizador.telefone,
+            perfis
+        });
+
         return res.status(200).json({
-            message: 'Sucesso',
-            user: {
+            mensagem: 'Sessão iniciada com sucesso',
+            token,
+            utilizador: {
+                id: utilizador.id_utilizador,
                 nome: utilizador.nome,
-                perfil: utilizador.perfil_nome
+                email: utilizador.email,
+                telefone: utilizador.telefone,
+                perfis
             }
         });
     } catch (error) {
@@ -146,50 +156,45 @@ async function me(req, res, next) {
 }
 
 async function verificarTelefone(req, res, next) {
-    const { telefone } = req.body;
     try {
-        const result = await pool.request()
-            .input('telefone', telefone)
-            .query('SELECT id_utilizador FROM [dbo].[UTILIZADOR] WHERE telefone = @telefone AND ativo = 1');
+        const { telefone } = req.body;
+        if (!telefone) {
+            return res.status(400).json({ error: 'telefone é obrigatório' });
+        }
 
-        if (result.recordset.length === 0) {
+        const telefoneLimpo = String(telefone).replace(/\s/g, '');
+        const existe = await userModel.existeUtilizadorTelefoneAtivo(telefoneLimpo);
+
+        if (!existe) {
             return res.status(404).json({ error: 'Telefone incorreto!' });
         }
 
         return res.status(200).json({ message: 'Telefone encontrado!' });
     } catch (err) {
-        next(err);
+        return next(err);
     }
 }
 
 async function resetPassword(req, res, next) {
-    const { telefone, novaPassword } = req.body;
-
-    // Verificação básica de entrada
-    if (!telefone || !novaPassword) {
-        return res.status(400).json({ error: 'Telefone e nova password são obrigatórios.' });
-    }
-
     try {
-        const salt = await bcrypt.genSalt(10);
-        const hashedPw = await bcrypt.hash(novaPassword, salt);
+        const { telefone, novaPassword } = req.body;
 
-        const telefoneLimpo = telefone.replace(/\s/g, '');
+        if (!telefone || !novaPassword) {
+            return res.status(400).json({ error: 'Telefone e nova password são obrigatórios.' });
+        }
 
-        const result = await pool.request()
-            .input('telefone', telefoneLimpo)
-            .input('password', hashedPw)
-            .query('UPDATE [dbo].[UTILIZADOR] SET [password] = @password WHERE telefone = @telefone AND ativo = 1');
+        const telefoneLimpo = String(telefone).replace(/\s/g, '');
+        const hashedPw = await bcrypt.hash(novaPassword, 10);
 
-        if (result.rowsAffected[0] === 0) {
+        const linhas = await userModel.atualizarPasswordPorTelefone(telefoneLimpo, hashedPw);
+
+        if (linhas === 0) {
             return res.status(404).json({ error: 'Utilizador não encontrado com este número de telefone.' });
         }
 
         return res.status(200).json({ message: 'Password alterada com sucesso!' });
-
     } catch (err) {
-        console.error("Erro detalhado no ResetPassword:", err);
-        return res.status(500).json({ error: 'Erro interno ao atualizar a password.' });
+        return next(err);
     }
 }
 
