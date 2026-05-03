@@ -4,13 +4,15 @@ require('dotenv').config();
 
 const { poolConnect } = require('./src/config/db');
 const authRoutes = require('./src/routes/authRoutes');
+const vendaRoutes = require('./src/routes/vendaRoutes');
 const errorHandler = require('./src/middlewares/errorHandler');
 
 
 const app = express();
 
 // Middleware
-app.use(express.json());
+app.use(express.json({ limit: '50mb' })); 
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 // CORS flexível para ambiente local (qualquer porta em localhost/127.0.0.1)
 app.use(cors({
@@ -31,6 +33,7 @@ app.get('/api/health', (req, res) => {
 
 // Definição de Rotas
 app.use('/api/auth', authRoutes);
+app.use('/api/vendas', vendaRoutes);
 
 // Tratamento de Erros (sempre no fim)
 app.use(errorHandler);
