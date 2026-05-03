@@ -1,6 +1,7 @@
+// Localização: frontend/src/pages/.../VendaFigurinos.jsx
 import React, { useState, useEffect } from 'react';
 import './VendaFigurinos.css';
-import logoImg from '../../assets/logo.png'; 
+import logoImg from '../../assets/logo.png'; // Ajusta o caminho se for diferente
 
 export default function VendaFigurinos({ irParaLanding }) {
   const [utilizador, setUtilizador] = useState(null);
@@ -10,6 +11,7 @@ export default function VendaFigurinos({ irParaLanding }) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isCompraModalOpen, setIsCompraModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   
   const [figurinoSelecionado, setFigurinoSelecionado] = useState(null);
 
@@ -19,26 +21,39 @@ export default function VendaFigurinos({ irParaLanding }) {
     preco: '',
     condicao: 'Novo',
     metodos_pagamento: ['MBWay'], 
-    fotos: [] 
+    fotos: [] // Agora vai guardar strings em Base64
   });
 
-  // Formulário de Edição
   const [figurinoEmEdicao, setFigurinoEmEdicao] = useState(null);
-
-  // Estado do formulário de Compra
   const [metodoPagamentoCompra, setMetodoPagamentoCompra] = useState('MBWay');
-
-  // Estado para controlar o índice da imagem visível em cada card
   const [indicesImagens, setIndicesImagens] = useState({});
 
+  // URL BASE DO BACKEND (Ajusta a porta se o teu backend correr noutra, p.ex: 3000 ou 5000)
+  const API_URL = 'http://localhost:3000/api/vendas';
+
+  // --- CARREGAR DADOS INICIAIS ---
   useEffect(() => {
     const userGuardado = localStorage.getItem('viva_user');
     if (userGuardado) {
       setUtilizador(JSON.parse(userGuardado));
     }
-    setFigurinos([]);
     document.title = "Venda de Figurinos | Escola de Dança";
+    
+    // Buscar figurinos da Base de Dados
+    carregarFigurinos();
   }, []);
+
+  const carregarFigurinos = async () => {
+    try {
+      const response = await fetch(API_URL);
+      if (response.ok) {
+        const data = await response.json();
+        setFigurinos(data);
+      }
+    } catch (error) {
+      console.error("Erro a carregar figurinos:", error);
+    }
+  };
 
   const handleLogout = () => {
     localStorage.removeItem('viva_user');
@@ -51,24 +66,71 @@ export default function VendaFigurinos({ irParaLanding }) {
   const proximaImagem = (e, id_venda, totalFotos) => {
     e.stopPropagation();
     setIndicesImagens(prev => ({
-      ...prev,
-      [id_venda]: ((prev[id_venda] || 0) + 1) % totalFotos
+      ...prev, [id_venda]: ((prev[id_venda] || 0) + 1) % totalFotos
     }));
   };
 
   const imagemAnterior = (e, id_venda, totalFotos) => {
     e.stopPropagation();
     setIndicesImagens(prev => ({
-      ...prev,
-      [id_venda]: ((prev[id_venda] || 0) - 1 + totalFotos) % totalFotos
+      ...prev, [id_venda]: ((prev[id_venda] || 0) - 1 + totalFotos) % totalFotos
     }));
   };
 
-  /* --- UPLOAD DE FOTOS --- */
-  const handleFotosUpload = (e) => {
+  /* --- UPLOAD DE FOTOS (Conversão para Base64) --- */
+  /* --- UPLOAD E COMPRESSÃO DE FOTOS --- */
+  const handleFotosUpload = async (e) => {
     const files = Array.from(e.target.files);
-    const novasFotosUrls = files.map(file => URL.createObjectURL(file));
-    setNovaVenda(prev => ({ ...prev, fotos: [...prev.fotos, ...novasFotosUrls] }));
+    
+    // Função mágica para reduzir o peso da imagem antes de enviar para o SQL
+    const comprimirImagem = (file) => {
+      return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = (event) => {
+          const img = new Image();
+          img.src = event.target.result;
+          img.onload = () => {
+            const canvas = document.createElement('canvas');
+            const MAX_WIDTH = 800; // Largura máxima impecável para web
+            const MAX_HEIGHT = 800;
+            let width = img.width;
+            let height = img.height;
+
+            // Mantém a proporção da imagem
+            if (width > height) {
+              if (width > MAX_WIDTH) {
+                height *= MAX_WIDTH / width;
+                width = MAX_WIDTH;
+              }
+            } else {
+              if (height > MAX_HEIGHT) {
+                width *= MAX_HEIGHT / height;
+                height = MAX_HEIGHT;
+              }
+            }
+
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, width, height);
+            
+            // Converte para JPEG com 70% de qualidade (reduz o tamanho brutalmente)
+            const compressedBase64 = canvas.toDataURL('image/jpeg', 0.7);
+            resolve(compressedBase64);
+          };
+        };
+      });
+    };
+
+    try {
+        // Comprime todas as fotos que o utilizador escolheu
+        const base64Fotos = await Promise.all(files.map(file => comprimirImagem(file)));
+        setNovaVenda(prev => ({ ...prev, fotos: [...prev.fotos, ...base64Fotos] }));
+    } catch (error) {
+        console.error("Erro ao converter fotos:", error);
+        alert("Erro ao processar as imagens.");
+    }
   };
 
   const removerFoto = (indexParaRemover) => {
@@ -84,48 +146,97 @@ export default function VendaFigurinos({ irParaLanding }) {
     });
   };
 
-  const handleSubmeterVenda = (e) => {
+  // --- SUBMETER VENDA (POST) ---
+  const handleSubmeterVenda = async (e) => {
     e.preventDefault();
+    setIsSubmitting(true); // Bloqueia o botão
+    
+    const userId = utilizador?.id_utilizador || utilizador?.id;
+
+    if (!userId) {
+        console.log("Dados do utilizador atual:", utilizador);
+        alert("Erro: Sessão inválida. O ID de utilizador não foi encontrado. Tenta fazer Logout e Login novamente.");
+        setIsSubmitting(false); // 1. DESBLOQUEIA AQUI (se falhar a sessão)
+        return;
+    }
+
     if (novaVenda.metodos_pagamento.length === 0) {
       alert("Por favor, seleciona pelo menos um método de pagamento.");
+      setIsSubmitting(false); // 2. DESBLOQUEIA AQUI (se faltar método de pagamento)
       return;
     }
 
-    const novoFigurino = {
-      id_venda: Math.random(), 
-      preco: parseFloat(novaVenda.preco),
-      estado: 'Disponível',
-      condicao: novaVenda.condicao,
-      PECA_nome: novaVenda.PECA_nome,
-      UTILIZADOR_nome: utilizador?.nome || 'Utilizador',
-      fotos: novaVenda.fotos.length > 0 ? novaVenda.fotos : ['https://images.unsplash.com/photo-1547152382-1611bc086830?q=80&w=400'],
-      metodos_pagamento: novaVenda.metodos_pagamento
+    const payload = {
+        ...novaVenda,
+        id_utilizador: userId
     };
 
-    setFigurinos([novoFigurino, ...figurinos]);
-    setNovaVenda({ PECA_nome: '', preco: '', condicao: 'Novo', metodos_pagamento: ['MBWay'], fotos: [] });
-    alert('Figurino colocado à venda com sucesso!');
-    setIsModalOpen(false);
-  };
+    try {
+        const response = await fetch(API_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
 
-  const handleApagar = (id_venda) => {
-    if(window.confirm('Tens a certeza que queres apagar este figurino?')) {
-      setFigurinos(figurinos.filter(fig => fig.id_venda !== id_venda));
+        if (response.ok) {
+            alert('Figurino colocado à venda com sucesso!');
+            setNovaVenda({ PECA_nome: '', preco: '', condicao: 'Novo', metodos_pagamento: ['MBWay'], fotos: [] });
+            setIsModalOpen(false);
+            carregarFigurinos();
+        } else {
+            alert('Ocorreu um erro ao guardar na base de dados.');
+        }
+    } catch (error) {
+        console.error("Erro:", error);
+    } finally {
+        setIsSubmitting(false); // 3. DESBLOQUEIA AQUI (no final de tudo, dê erro ou sucesso)
     }
   };
 
+  // --- APAGAR VENDA (DELETE) ---
+  const handleApagar = async (id_venda) => {
+    if(window.confirm('Tens a certeza que queres apagar este figurino?')) {
+        try {
+            const response = await fetch(`${API_URL}/${id_venda}`, { method: 'DELETE' });
+            if (response.ok) {
+                carregarFigurinos();
+            }
+        } catch (error) {
+            console.error("Erro ao apagar:", error);
+        }
+    }
+  };
+
+  // --- EDITAR VENDA (PUT) ---
   const abrirEdicao = (figurino) => {
     setFigurinoEmEdicao({ ...figurino });
     setIsEditModalOpen(true);
   };
 
-  const handleGuardarEdicao = (e) => {
+  const handleGuardarEdicao = async (e) => {
     e.preventDefault();
-    setFigurinos(figurinos.map(fig => fig.id_venda === figurinoEmEdicao.id_venda ? figurinoEmEdicao : fig));
-    alert('Alterações guardadas com sucesso!');
-    setIsEditModalOpen(false);
+    try {
+        const response = await fetch(`${API_URL}/${figurinoEmEdicao.id_venda}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                PECA_nome: figurinoEmEdicao.PECA_nome,
+                preco: figurinoEmEdicao.preco,
+                estado: figurinoEmEdicao.estado
+            })
+        });
+
+        if (response.ok) {
+            alert('Alterações guardadas com sucesso!');
+            setIsEditModalOpen(false);
+            carregarFigurinos();
+        }
+    } catch (error) {
+        console.error("Erro ao editar:", error);
+    }
   };
 
+  // --- COMPRAR VENDA (PUT) ---
   const handleComprar = (figurino) => {
     setFigurinoSelecionado(figurino);
     if (figurino.metodos_pagamento && figurino.metodos_pagamento.length > 0) {
@@ -134,11 +245,43 @@ export default function VendaFigurinos({ irParaLanding }) {
     setIsCompraModalOpen(true);
   };
 
-  const confirmarCompra = (e) => {
+  const confirmarCompra = async (e) => {
     e.preventDefault();
-    setFigurinos(figurinos.map(fig => fig.id_venda === figurinoSelecionado.id_venda ? { ...fig, estado: 'Vendido' } : fig));
-    alert(`Compra de ${figurinoSelecionado.PECA_nome} confirmada!`);
-    setIsCompraModalOpen(false);
+    setIsSubmitting(true); // Se quiseres bloquear o botão como fizemos na publicação
+
+    // Tenta apanhar o ID de quem está logado (o comprador)
+    const idComprador = utilizador?.id_utilizador || utilizador?.id;
+
+    if (!idComprador) {
+        alert("Erro: Sessão inválida. Por favor, faz login novamente para comprar.");
+        setIsSubmitting(false);
+        return;
+    }
+
+    try {
+        const response = await fetch(`${API_URL}/${figurinoSelecionado.id_venda}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                PECA_nome: figurinoSelecionado.PECA_nome,
+                preco: figurinoSelecionado.preco,
+                estado: 'Vendido', // Passa o estado a Vendido
+                UTILIZADORid_utilizador2: idComprador // ENVIA O ID DO COMPRADOR!
+            })
+        });
+
+        if (response.ok) {
+            alert(`Compra de ${figurinoSelecionado.PECA_nome} confirmada! Parabéns!`);
+            setIsCompraModalOpen(false);
+            carregarFigurinos(); // Recarrega a página para o item aparecer cinzento
+        } else {
+            alert('Ocorreu um erro ao confirmar a compra.');
+        }
+    } catch (error) {
+        console.error("Erro a confirmar compra:", error);
+    } finally {
+        setIsSubmitting(false);
+    }
   };
 
   return (
@@ -204,9 +347,12 @@ export default function VendaFigurinos({ irParaLanding }) {
                     </>
                   )}
 
-                  {utilizador?.nome === fig.UTILIZADOR_nome && (
+                  {/* AÇÕES DO DONO: Apagar aparece sempre, Editar só se não estiver vendido */}
+                  {utilizador?.id_utilizador === fig.id_utilizador && (
                     <div className="acoes-dono">
-                      <button className="btn-icon edit" title="Editar" onClick={() => abrirEdicao(fig)}>✎</button>
+                      {fig.estado !== 'Vendido' && (
+                        <button className="btn-icon edit" title="Editar" onClick={() => abrirEdicao(fig)}>✎</button>
+                      )}
                       <button className="btn-icon delete" title="Apagar" onClick={() => handleApagar(fig.id_venda)}>🗑️</button>
                     </div>
                   )}
@@ -223,13 +369,24 @@ export default function VendaFigurinos({ irParaLanding }) {
 
                   <div className="figurino-footer">
                     <span className="preco">{Number(fig.preco).toFixed(2)} €</span>
-                    {fig.estado === 'Disponível' && utilizador?.nome !== fig.UTILIZADOR_nome && (
+                    
+                    {/* Botão Comprar para outros utilizadores */}
+                    {fig.estado === 'Disponível' && utilizador?.id_utilizador !== fig.id_utilizador && (
                       <button className="btn-outline btn-sm" onClick={() => handleComprar(fig)} disabled={!utilizador}>
                         Comprar
                       </button>
                     )}
-                    {utilizador?.nome === fig.UTILIZADOR_nome && (
+                    
+                    {/* Texto "O teu item" só se estiver disponível */}
+                    {fig.estado === 'Disponível' && utilizador?.id_utilizador === fig.id_utilizador && (
                       <span className="texto-teu-item">O teu item</span>
+                    )}
+
+                    {/* Mostrar o nome do comprador se estiver vendido */}
+                    {fig.estado === 'Vendido' && fig.COMPRADOR_nome && (
+                      <span className="texto-teu-item" style={{ color: '#b38b59', fontWeight: 'bold' }}>
+                        Comprado por: {fig.COMPRADOR_nome}
+                      </span>
                     )}
                   </div>
                 </div>
@@ -278,7 +435,7 @@ export default function VendaFigurinos({ irParaLanding }) {
         </div>
       </footer>
 
-      {/* --- MODAIS IGUAIS AOS ANTERIORES --- */}
+      {/* --- MODAIS DE COMPRA E VENDA --- */}
       {isModalOpen && (
         <div className="modal-overlay">
           <div className="modal-content form-venda">
@@ -333,7 +490,7 @@ export default function VendaFigurinos({ irParaLanding }) {
               </div>
               <div className="modal-actions">
                 <button type="button" className="btn-text" onClick={() => setIsModalOpen(false)}>Cancelar</button>
-                <button type="submit" className="btn-dark">Publicar</button>
+                <button type="submit" className="btn-dark" disabled={isSubmitting}>{isSubmitting ? 'A Publicar...' : 'Publicar'}</button>
               </div>
             </form>
           </div>

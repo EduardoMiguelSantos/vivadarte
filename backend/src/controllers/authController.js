@@ -114,6 +114,7 @@ async function login(req, res, next) {
         return res.status(200).json({
             message: 'Sucesso',
             user: {
+                id_utilizador: utilizador.id_utilizador,
                 nome: utilizador.nome,
                 perfil: utilizador.perfil_nome
             }

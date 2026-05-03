@@ -35,11 +35,11 @@
 .btn-publicar { padding: 12px 28px; font-size: 1.05rem; box-shadow: 0 6px 15px rgba(0,0,0,0.1); }
 
 /* ========================================= */
-/* --- GRID E CARTÕES (TAMANHO AJUSTADO) --- */
+/* --- GRID E CARTÕES ---                    */
 /* ========================================= */
 .figurinos-grid { 
   display: grid; 
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); /* Médio: Original 240px -> Agora 280px */
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); 
   gap: 25px; 
 }
 .figurino-card { 
@@ -53,11 +53,29 @@
   flex-direction: column; 
 }
 .figurino-card:hover { transform: translateY(-5px); box-shadow: 0 10px 25px rgba(42, 39, 36, 0.12); }
-.figurino-card.vendido { opacity: 0.6; filter: grayscale(90%); pointer-events: none; }
+
+/* --- ESTADO VENDIDO (MAIS ESCURO E VISÍVEL) --- */
+.figurino-card.vendido { 
+  opacity: 1; 
+  filter: none; 
+  background-color: #d1cdc3; /* Tom de quadrado mais escuro[cite: 2] */
+}
+.figurino-card.vendido .figurino-info {
+  opacity: 0.6;
+  filter: grayscale(100%);
+}
+.figurino-card.vendido .figurino-img::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background-color: rgba(0, 0, 0, 0.25); /* Véu mais escuro para destacar botões[cite: 2] */
+  backdrop-filter: grayscale(100%);
+  z-index: 5;
+}
 
 /* --- CARROSSEL IMAGEM --- */
 .figurino-img { 
-  height: 230px; /* Médio: Original 180px -> Agora 230px */
+  height: 230px; 
   background-size: cover; 
   background-position: center; 
   position: relative; 
@@ -70,6 +88,7 @@
   width: 28px; height: 28px; font-size: 1.1rem; font-weight: bold; cursor: pointer;
   display: flex; align-items: center; justify-content: center;
   color: #2a2724; transition: all 0.2s ease; opacity: 0; box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+  z-index: 10;
 }
 .figurino-img:hover .img-nav-btn { opacity: 1; }
 .img-nav-btn:hover { background: #b38b59; color: #fff; transform: translateY(-50%) scale(1.1); }
@@ -78,24 +97,49 @@
 
 .img-dots {
   position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%);
-  display: flex; gap: 6px; z-index: 5;
+  display: flex; gap: 6px; z-index: 10;
 }
 .dot {
   width: 6px; height: 6px; background: rgba(255, 255, 255, 0.5); border-radius: 50%; transition: all 0.3s ease; box-shadow: 0 1px 3px rgba(0,0,0,0.3);
 }
 .dot.active { background: #fff; transform: scale(1.3); }
 
-/* --- BADGES E INFOS --- */
+/* --- BADGES E AÇÕES DO DONO --- */
 .badge-estado { position: absolute; top: 12px; right: 12px; padding: 4px 10px; border-radius: 15px; font-size: 0.75rem; font-weight: 700; color: #fff; text-transform: uppercase; letter-spacing: 0.8px; box-shadow: 0 2px 8px rgba(0,0,0,0.2); z-index: 10; }
 .bg-green { background-color: #b38b59; } 
 .bg-red { background-color: #2a2724; } 
 
 .acoes-dono { position: absolute; top: 12px; left: 12px; display: flex; gap: 8px; z-index: 10; }
-.btn-icon { background: rgba(255, 255, 255, 0.95); border: none; border-radius: 50%; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,0.15); transition: all 0.2s ease; font-size: 0.9rem; color: #333; }
-.btn-icon:hover { transform: scale(1.15); }
-.btn-icon.edit:hover { background-color: #b38b59; color: #fff; }
-.btn-icon.delete:hover { background-color: #e74c3c; color: #fff; }
 
+/* Botões com o mesmo tamanho (38px)[cite: 1] */
+.btn-icon { 
+  border: none; 
+  border-radius: 50%; 
+  width: 38px; 
+  height: 38px; 
+  display: flex; 
+  align-items: center; 
+  justify-content: center; 
+  cursor: pointer; 
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15); 
+  transition: all 0.2s ease; 
+  font-size: 1rem; 
+}
+
+.btn-icon.edit { 
+  background: rgba(255, 255, 255, 0.95); 
+  color: #333; 
+}
+.btn-icon.edit:hover { background-color: #b38b59; color: #fff; transform: scale(1.1); }
+
+.btn-icon.delete { 
+  background-color: #e74c3c; 
+  color: #fff; 
+  box-shadow: 0 4px 12px rgba(231, 76, 60, 0.3);
+}
+.btn-icon.delete:hover { background-color: #c0392b; transform: scale(1.1); }
+
+/* --- INFO --- */
 .figurino-info { padding: 18px; display: flex; flex-direction: column; flex-grow: 1; }
 .figurino-info h3 { margin: 0 0 6px 0; color: #2a2724; font-size: 1.1rem; line-height: 1.3; font-weight: 700; }
 .badge-condicao { display: inline-block; font-size: 0.7rem; background-color: #dfdbd2; color: #555; padding: 3px 8px; border-radius: 4px; margin-bottom: 8px; font-weight: 600; width: fit-content; }
@@ -110,7 +154,7 @@
 .empty-state { grid-column: 1 / -1; text-align: center; padding: 40px; font-size: 1.1rem; color: #888; background: rgba(0,0,0,0.02); border-radius: 12px; }
 
 /* ========================================= */
-/* --- BOTÕES ---                            */
+/* --- BOTÕES GERAIS ---                     */
 /* ========================================= */
 .btn-dark { background-color: #2a2724; color: #fff; border: none; padding: 12px 24px; border-radius: 8px; font-weight: 600; cursor: pointer; transition: all 0.3s ease; }
 .btn-dark:hover { background-color: #1a1816; transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.2); }
@@ -141,7 +185,7 @@
 .footer-bottom p { font-size: 0.8rem; opacity: 0.5; margin: 0; letter-spacing: 0.5px;}
 
 /* ========================================= */
-/* --- MODAIS & ESTÉTICA PREMIUM ---         */
+/* --- MODAIS ---                            */
 /* ========================================= */
 .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background-color: rgba(26, 24, 22, 0.85); display: flex; justify-content: center; align-items: center; z-index: 2000; backdrop-filter: blur(6px); }
 .modal-content { background-color: #eeeae2; padding: 40px; border-radius: 18px; width: 100%; max-width: 520px; box-shadow: 0 15px 50px rgba(0,0,0,0.3); }
