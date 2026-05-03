@@ -12,7 +12,8 @@ const errorHandler = require('./src/middlewares/errorHandler');
 const app = express();
 
 // Middleware
-app.use(express.json());
+app.use(express.json({ limit: '50mb' })); 
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 // CORS flexível para ambiente local (qualquer porta em localhost/127.0.0.1)
 app.use(cors({
