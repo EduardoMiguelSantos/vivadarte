@@ -302,12 +302,24 @@ export default function VendaFigurinos({ irParaLanding, irParaEmprestimos }) {
           <span>VIVA D'ARTE</span>
         </div>
         <ul className="nav-menu">
-          <li><a href="#" onClick={(e) => { e.preventDefault(); if(irParaLanding) irParaLanding(); }}>Início</a></li>
-          <li className="nav-separator">|</li>
-          <li><a href="#" className="special-link">Agendar Coaching</a></li>
-          <li><a href="#" className="special-link" onClick={(e) => { e.preventDefault(); irParaEmprestimos(); }}>Empréstimos de peças</a></li>
-          <li><a href="#" className="special-link active">Venda de figurinos</a></li>
-        </ul>
+  <li><a href="#" onClick={(e) => { e.preventDefault(); irParaLanding(); }}>Início</a></li>
+  
+  {utilizador?.perfil === 'Professor' ? (
+    <>
+      <li><span className="nav-separator">|</span></li>
+      <li><a href="#" className="special-link">Coaching Agendados</a></li>
+      <li><a href="#" className="special-link" onClick={(e) => { e.preventDefault(); irParaEmprestimos(); }}>Empréstimos de peças</a></li>
+      <li><a href="#" className="special-link active">Venda de figurinos</a></li>
+    </>
+  ) : utilizador ? (
+    <>
+      <li><span className="nav-separator">|</span></li>
+      <li><a href="#" className="special-link">Agendar Coaching</a></li>
+      <li><a href="#" className="special-link" onClick={(e) => { e.preventDefault(); irParaEmprestimos(); }}>Empréstimos de peças</a></li>
+      <li><a href="#" className="special-link active">Venda de figurinos</a></li>
+    </>
+  ) : null}
+</ul>
         <div className="nav-actions">
           {utilizador && (
             <div className="user-profile">
