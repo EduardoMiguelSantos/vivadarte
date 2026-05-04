@@ -179,13 +179,14 @@ async function criarPedidoCoaching(req, res, next) {
         }
 
         // Calcular custo estimado automaticamente (US16 / RF18)
+        // NOTA: Aqui mantemos o cálculo 1 ou 2, porque a TABELA_PRECO usa esta lógica (Dia Útil vs Fim de Semana)
         const dataObj = new Date(dataAula);
-        const diaSemana = [0, 6].includes(dataObj.getDay()) ? 2 : 1; // 2=fim de semana, 1=dia de semana
+        const diaSemanaPreco = [0, 6].includes(dataObj.getDay()) ? 2 : 1; 
 
         const custoEstimado = await faturacaoModel.calcularCustoAutomatico(
             formatoAula,
             Number(duracaoMinutos),
-            diaSemana,
+            diaSemanaPreco,
             parseInt(idModalidade),
             idProfessor ? parseInt(idProfessor) : null
         );
@@ -243,9 +244,6 @@ async function aprovarPedido(req, res, next) {
             return res.status(400).json({ mensagem: 'idSala, idProfessor e valorFinal são obrigatórios.' });
         }
 
-        // Para aprovação a coordenação precisa de confirmar os dados do coaching.
-        // Os dados do pedido original devem ser passados ou obtidos.
-        // Aqui assumimos que o body também contém os dados confirmados do coaching:
         const {
             formatoAula,
             duracaoMinutos,
@@ -262,6 +260,13 @@ async function aprovarPedido(req, res, next) {
             });
         }
 
+        // --- CÁLCULO DO DIA DA SEMANA REAL (1 a 7) ---
+        // A tabela HORARIO usa os dias reais da semana para as aulas regulares
+        const dataObj = new Date(dataAula);
+        let diaSemanaCoaching = dataObj.getDay();
+        // O getDay() de JavaScript devolve 0 para Domingo. Convertemos para 7 para bater certo com a lógica.
+        diaSemanaCoaching = diaSemanaCoaching === 0 ? 7 : diaSemanaCoaching;
+
         const idCoaching = await coachingModel.aprovarEAgendarCoaching({
             idPedido,
             formatoAula,
@@ -269,6 +274,7 @@ async function aprovarPedido(req, res, next) {
             numeroParticipantes: Number(numeroParticipantes),
             dataAula,
             horaInicio,
+            diaSemanaCoaching, // Enviamos a propriedade que o model agora exige para validar conflitos!
             idProfessor: parseInt(idProfessor),
             idAnoLetivo: parseInt(idAnoLetivo),
             idModalidade: parseInt(idModalidade),
