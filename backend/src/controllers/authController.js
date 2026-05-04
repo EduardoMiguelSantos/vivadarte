@@ -1,207 +1,152 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const userModel = require('../models/utilizadorModel');
+const crypto = require('crypto');
 
-const PERFIL_MAP = {
-    EE: 'EE',
-    PROF: 'Professor'
-};
+const utilizadorModel = require('../models/utilizadorModel');
 
-function mapTipoParaPerfil(tipo) {
-    return PERFIL_MAP[tipo] || null;
-}
-
-/** IDs alinhados com a tabela PERFIL (Admin=1, EE=2, Professor=3). */
-function mapTipoParaPerfilId(tipo) {
-    const t = String(tipo || '').toUpperCase();
-    if (t === 'ADMIN') return 1;
-    if (t === 'EE') return 2;
-    if (t === 'PROF') return 3;
-    return null;
-}
-
-function gerarToken(utilizador) {
-    if (!process.env.JWT_SECRET) {
-        const err = new Error('JWT_SECRET não definido no backend/.env');
-        err.status = 500;
-        throw err;
-    }
-
-    return jwt.sign(
-        {
-            id: utilizador.id_utilizador,
-            email: utilizador.email,
-            perfis: utilizador.perfis
-        },
-        process.env.JWT_SECRET,
-        { expiresIn: process.env.JWT_EXPIRES_IN || '8h' }
-    );
-}
-
-async function registar(req, res, next) {
-    try {
-        const { nome, email, password, telefone, tipo } = req.body;
-
-        if (!nome || !email || !password || !tipo || !telefone) {
-            return res.status(400).json({ error: 'nome, email, password, telefone e tipo são obrigatórios' });
-        }
-
-        const perfilNome = mapTipoParaPerfil(tipo);
-        if (!perfilNome) {
-            return res.status(400).json({ error: 'tipo inválido. Use EE ou PROF' });
-        }
-
-        const existente = await userModel.getUtilizadorByEmail(email);
-        if (existente) {
-            return res.status(409).json({ error: 'Email já registado' });
-        }
-
-        const passwordHash = await bcrypt.hash(password, 10);
-        const novoUtilizador = await userModel.criarUtilizador({
-            nome,
-            email,
-            passwordHash,
-            telefone,
-            nomePerfil: perfilNome,
-            tipo
-        });
-
-        const perfis = await userModel.getPerfisDoUtilizador(novoUtilizador.id_utilizador);
-        const token = gerarToken({ ...novoUtilizador, perfis });
-
-        return res.status(201).json({
-            mensagem: 'Conta criada com sucesso',
-            token,
-            utilizador: {
-                id: novoUtilizador.id_utilizador,
-                nome: novoUtilizador.nome,
-                email: novoUtilizador.email,
-                telefone: novoUtilizador.telefone,
-                perfis
-            }
-        });
-    } catch (error) {
-        return next(error);
-    }
-}
-
+// ============================================================================
+// US01 / RF01 — LOGIN
+// POST /api/auth/login
+// Body: { email, password }
+// ============================================================================
 async function login(req, res, next) {
     try {
-        const { email, password, tipo } = req.body;
+        const { email, password } = req.body;
 
-        if (!email || !password || !tipo) {
-            return res.status(400).json({ error: 'email, password e tipo são obrigatórios' });
+        if (!email || !password) {
+            return res.status(400).json({ mensagem: 'Email e password são obrigatórios.' });
         }
 
-        const perfilId = mapTipoParaPerfilId(tipo);
-        if (!perfilId) {
-            return res.status(400).json({ error: 'tipo inválido. Use EE, PROF ou ADMIN' });
-        }
+        const utilizador = await utilizadorModel.getUtilizadorByEmail(email);
 
-        const utilizador = await userModel.getUtilizadorParaLogin(email, perfilId);
         if (!utilizador) {
-            return res.status(401).json({ error: 'Email ou palavra-passe incorretos.' });
+            return res.status(401).json({ mensagem: 'Credenciais inválidas.' });
         }
 
-        const passwordValida = await bcrypt.compare(password, utilizador.password);
-        if (!passwordValida) {
-            return res.status(401).json({ error: 'Email ou palavra-passe incorretos.' });
+        if (!utilizador.ativo) {
+            return res.status(403).json({ mensagem: 'Conta desativada. Contacte o administrador.' });
         }
 
-        const perfis = await userModel.getPerfisDoUtilizador(utilizador.id_utilizador);
-        const token = gerarToken({
-            id_utilizador: utilizador.id_utilizador,
-            nome: utilizador.nome,
-            email: utilizador.email,
-            telefone: utilizador.telefone,
-            perfis
-        });
+        const passwordCorreta = await bcrypt.compare(password, utilizador.password);
+        if (!passwordCorreta) {
+            return res.status(401).json({ mensagem: 'Credenciais inválidas.' });
+        }
+
+        const perfis = await utilizadorModel.getPerfisDoUtilizador(utilizador.id_utilizador);
+
+        const token = jwt.sign(
+            {
+                id: utilizador.id_utilizador,
+                nome: utilizador.nome,
+                email: utilizador.email,
+                perfis
+            },
+            process.env.JWT_SECRET,
+            { expiresIn: process.env.JWT_EXPIRES_IN || '8h' }
+        );
 
         return res.status(200).json({
-            mensagem: 'Sessão iniciada com sucesso',
+            mensagem: 'Login efetuado com sucesso.',
             token,
             utilizador: {
                 id: utilizador.id_utilizador,
                 nome: utilizador.nome,
                 email: utilizador.email,
-                telefone: utilizador.telefone,
                 perfis
             }
         });
     } catch (error) {
-        return next(error);
+        next(error);
     }
 }
 
-async function me(req, res, next) {
+// ============================================================================
+// US01 / RF01 — LOGOUT (stateless: invalidação do lado do cliente)
+// POST /api/auth/logout
+// ============================================================================
+async function logout(req, res) {
+    // Com JWT stateless, o logout é gerido pelo cliente (eliminar o token).
+    // Aqui apenas confirmamos a operação.
+    return res.status(200).json({ mensagem: 'Sessão terminada com sucesso.' });
+}
+
+// ============================================================================
+// US02 / RF02 — SOLICITAR RECUPERAÇÃO DE PALAVRA-PASSE
+// POST /api/auth/recuperar-password
+// Body: { email }
+// ============================================================================
+async function solicitarRecuperacaoPassword(req, res, next) {
     try {
-        const utilizador = await userModel.getUtilizadorByEmail(req.utilizador.email);
-        if (!utilizador) {
-            return res.status(404).json({ error: 'Utilizador não encontrado' });
+        const { email } = req.body;
+
+        if (!email) {
+            return res.status(400).json({ mensagem: 'Email é obrigatório.' });
         }
 
-        const perfis = await userModel.getPerfisDoUtilizador(utilizador.id_utilizador);
+        const utilizador = await utilizadorModel.getUtilizadorByEmail(email);
 
-        return res.json({
-            utilizador: {
-                id: utilizador.id_utilizador,
-                nome: utilizador.nome,
-                email: utilizador.email,
-                perfis
-            }
+        // Resposta genérica por segurança (não revelar se o email existe ou não)
+        if (!utilizador || !utilizador.ativo) {
+            return res.status(200).json({
+                mensagem: 'Se o email existir no sistema, receberá instruções para recuperar a palavra-passe.'
+            });
+        }
+
+        const token = crypto.randomBytes(32).toString('hex');
+        await utilizadorModel.guardarTokenRecuperacao(utilizador.id_utilizador, token);
+
+        // TODO: Integrar envio de email (ex: nodemailer) com o link:
+        // `${process.env.FRONTEND_URL}/redefinir-password?token=${token}`
+        console.log(`[DEV] Token de recuperação para ${email}: ${token}`);
+
+        return res.status(200).json({
+            mensagem: 'Se o email existir no sistema, receberá instruções para recuperar a palavra-passe.'
         });
     } catch (error) {
-        return next(error);
+        next(error);
     }
 }
 
-async function verificarTelefone(req, res, next) {
+// ============================================================================
+// US02 / RF02 — REDEFINIR PALAVRA-PASSE COM TOKEN
+// POST /api/auth/redefinir-password
+// Body: { token, novaPassword }
+// ============================================================================
+async function redefinirPassword(req, res, next) {
     try {
-        const { telefone } = req.body;
-        if (!telefone) {
-            return res.status(400).json({ error: 'telefone é obrigatório' });
+        const { token, novaPassword } = req.body;
+
+        if (!token || !novaPassword) {
+            return res.status(400).json({ mensagem: 'Token e nova password são obrigatórios.' });
         }
 
-        const telefoneLimpo = String(telefone).replace(/\s/g, '');
-        const existe = await userModel.existeUtilizadorTelefoneAtivo(telefoneLimpo);
-
-        if (!existe) {
-            return res.status(404).json({ error: 'Telefone incorreto!' });
+        if (novaPassword.length < 8) {
+            return res.status(400).json({ mensagem: 'A password deve ter pelo menos 8 caracteres.' });
         }
 
-        return res.status(200).json({ message: 'Telefone encontrado!' });
-    } catch (err) {
-        return next(err);
-    }
-}
+        const tokenValido = await utilizadorModel.validarTokenRecuperacao(token);
 
-async function resetPassword(req, res, next) {
-    try {
-        const { telefone, novaPassword } = req.body;
-
-        if (!telefone || !novaPassword) {
-            return res.status(400).json({ error: 'Telefone e nova password são obrigatórios.' });
+        if (!tokenValido) {
+            return res.status(400).json({ mensagem: 'Token inválido ou expirado.' });
         }
 
-        const telefoneLimpo = String(telefone).replace(/\s/g, '');
-        const hashedPw = await bcrypt.hash(novaPassword, 10);
+        const novaPasswordHash = await bcrypt.hash(novaPassword, 10);
 
-        const linhas = await userModel.atualizarPasswordPorTelefone(telefoneLimpo, hashedPw);
+        await utilizadorModel.atualizarPassword(
+            tokenValido.UTILIZADORid_utilizador,
+            novaPasswordHash,
+            tokenValido.id_token_recuperacao
+        );
 
-        if (linhas === 0) {
-            return res.status(404).json({ error: 'Utilizador não encontrado com este número de telefone.' });
-        }
-
-        return res.status(200).json({ message: 'Password alterada com sucesso!' });
-    } catch (err) {
-        return next(err);
+        return res.status(200).json({ mensagem: 'Palavra-passe atualizada com sucesso.' });
+    } catch (error) {
+        next(error);
     }
 }
 
 module.exports = {
-    registar,
     login,
-    me,
-    verificarTelefone,
-    resetPassword
+    logout,
+    solicitarRecuperacaoPassword,
+    redefinirPassword
 };
