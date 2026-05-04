@@ -23,9 +23,7 @@
 /* O wrapper do meio cresce para preencher o ecrã */
 .emprestimos-content-wrapper {
   flex: 1;
-  padding: 120px 40px 60px 40px; /* Padding top para não bater na navbar fixa */
-  max-width: 1200px;
-  margin: 0 auto;
+  padding: 120px 10% 60px 10%;
   width: 100%;
   box-sizing: border-box;
 }
@@ -36,8 +34,10 @@
   top: 0;
   left: 0;
   width: 100%;
-  background-color: var(--bg-page);
-  padding: 15px 40px;
+  height: 80px; 
+  background-color: rgba(234, 230, 223, 0.9); 
+  backdrop-filter: blur(12px); 
+  padding: 0 8%; 
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -73,25 +73,32 @@
 }
 
 .btn-add-peca {
-  background-color: var(--text-main);
-  color: white;
+  background-color: var(--text-main, #2a2724);
+  color: #ffffff;
   border: none;
-  padding: 12px 24px;
+  height: 46px; 
+  padding: 0 24px;
   border-radius: 8px;
+  font-size: 0.95rem; 
   font-weight: 600;
   cursor: pointer;
   transition: all 0.3s ease;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.08); 
 }
 
 .btn-add-peca:hover {
-  background-color: #000;
+  background-color: #000000;
   transform: translateY(-2px);
 }
 
 /* --- GRID DE CARTÕES --- */
 .pecas-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 25px;
 }
 

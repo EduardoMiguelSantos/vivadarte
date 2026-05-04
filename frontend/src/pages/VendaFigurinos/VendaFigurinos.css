@@ -32,7 +32,28 @@
 .vendas-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 40px; flex-wrap: wrap; gap: 20px; }
 .vendas-header h1 { font-size: 2.2rem; color: #2a2724; margin: 0 0 8px 0; letter-spacing: -0.5px; }
 .vendas-header p { margin: 0; font-size: 1.05rem; opacity: 0.8; }
-.btn-publicar { padding: 12px 28px; font-size: 1.05rem; box-shadow: 0 6px 15px rgba(0,0,0,0.1); }
+.btn-publicar {
+  background-color: #2a2724;
+  color: #ffffff;
+  border: none;
+  height: 46px; 
+  padding: 0 24px;
+  border-radius: 8px;
+  font-size: 0.95rem; 
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.08); 
+}
+
+.btn-publicar:hover {
+  background-color: #1a1816;
+  transform: translateY(-2px);
+}
 
 /* ========================================= */
 /* --- GRID E CARTÕES ---                    */

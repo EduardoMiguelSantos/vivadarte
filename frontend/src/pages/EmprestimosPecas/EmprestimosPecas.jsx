@@ -6,44 +6,38 @@ import logoImg from '../../assets/logo.png';
 export default function EmprestimosPecas({ irParaLanding, irParaVendaFigurinos }) {
   const [utilizador, setUtilizador] = useState(null);
 
-  // Dados fictícios para o visual inicial
-  const [pecas, setPecas] = useState([
-    {
-      id: 1,
-      nome: "Tutu Branco Clássico",
-      tamanho: "M",
-      estado: "Novo",
-      disponivel: true,
-      proprietario: "Escola",
-      imagem: "https://tecnofit-site.s3.sa-east-1.amazonaws.com/media/files/2021/08/20124642/studio-dan%C3%A7a.jpeg" 
-    },
-    {
-      id: 2,
-      nome: "Maillot Preto Básico",
-      tamanho: "S",
-      estado: "Usado - Marcas de uso",
-      disponivel: false,
-      proprietario: "EE",
-      data_devolucao: "15/05/2026",
-      imagem: null
-    },
-    {
-      id: 3,
-      nome: "Sapatilhas Meia Ponta",
-      tamanho: "37",
-      estado: "Usado - Como Novo",
-      disponivel: true,
-      proprietario: "Professor",
-      imagem: null
-    }
-  ]);
+  // 1. STATE VAZIO: Preparado para receber os dados reais da BD
+  const [pecas, setPecas] = useState([]);
+  const [carregando, setCarregando] = useState(true);
 
   useEffect(() => {
     document.title = "Empréstimos de Peças | Viva D'arte";
+    
+    // Verificar se o utilizador tem sessão iniciada
     const userGuardado = localStorage.getItem('viva_user');
     if (userGuardado) {
       setUtilizador(JSON.parse(userGuardado));
     }
+
+    // 2. BUSCAR DADOS REAIS À BASE DE DADOS
+    const carregarEmprestimos = async () => {
+      try {
+        // Ajusta este URL para bater certo com a rota do teu backend (ex: /api/emprestimos)
+        const response = await fetch('http://localhost:3000/api/emprestimos'); 
+        if (response.ok) {
+          const dados = await response.json();
+          setPecas(dados);
+        } else {
+          console.error("Falha ao ir buscar as peças para empréstimo.");
+        }
+      } catch (error) {
+        console.error("Erro de ligação à BD:", error);
+      } finally {
+        setCarregando(false);
+      }
+    };
+
+    carregarEmprestimos();
   }, []);
 
   const handleLogout = () => {
@@ -101,60 +95,79 @@ export default function EmprestimosPecas({ irParaLanding, irParaVendaFigurinos }
               Solicita ou partilha peças com a comunidade Viva D'arte.
             </p>
           </div>
-          <button className="btn-add-peca">
-            + Disponibilizar Peça
-          </button>
+          {/* O botão só aparece se o utilizador tiver sessão iniciada */}
+          {utilizador && (
+            <button className="btn-add-peca">
+              + Disponibilizar Peça
+            </button>
+          )}
         </div>
 
         <div className="pecas-grid">
-          {pecas.map((peca) => (
-            <div key={peca.id} className="peca-card">
-              
-              <div className="peca-image-container">
-                {peca.imagem ? (
-                  <img src={peca.imagem} alt={peca.nome} className="peca-image" />
-                ) : (
-                  <div className="peca-image-placeholder">
-                    <span>Sem Imagem</span>
-                  </div>
-                )}
+          {carregando ? (
+            <div className="empty-state" style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '40px', color: '#888' }}>
+              A carregar peças disponíveis...
+            </div>
+          ) : pecas.length === 0 ? (
+            <div className="empty-state" style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '40px', color: '#888', background: 'rgba(0,0,0,0.02)', borderRadius: '12px' }}>
+              Ainda não existem peças disponíveis para empréstimo. Sê o primeiro a disponibilizar!
+            </div>
+          ) : (
+            pecas.map((peca) => (
+              <div key={peca.id_peca || peca.id} className="peca-card">
                 
-                <span className={`status-badge ${peca.disponivel ? 'disponivel' : 'emprestado'}`}>
-                  {peca.disponivel ? 'DISPONÍVEL' : 'EMPRESTADO'}
-                </span>
-
-                <div className="owner-actions">
-                  <button className="action-btn edit-btn" title="Editar">✏️</button>
-                  <button className="action-btn delete-btn" title="Apagar">🗑️</button>
-                </div>
-              </div>
-
-              <div className="peca-content">
-                <h3 className="peca-nome">{peca.nome}</h3>
-                
-                <div className="peca-tags">
-                  <span className="tag-estado">{peca.estado}</span>
-                  {peca.tamanho && <span className="tag-tamanho">Tam: {peca.tamanho}</span>}
-                </div>
-
-                <p className="peca-owner">Disponibilizado por: <strong>{peca.proprietario}</strong></p>
-
-                <div className="peca-footer">
-                  {peca.disponivel ? (
-                    <>
-                      <span className="peca-price">Gratuito</span>
-                      <button className="btn-solicitar">Solicitar</button>
-                    </>
+                <div className="peca-image-container">
+                  {peca.imagem || (peca.fotos && peca.fotos.length > 0) ? (
+                    <img src={peca.imagem || peca.fotos[0]} alt={peca.nome} className="peca-image" />
                   ) : (
-                    <>
-                      <span className="peca-devolucao">Devolução: {peca.data_devolucao}</span>
-                      <button className="btn-solicitar disabled" disabled>Indisponível</button>
-                    </>
+                    <div className="peca-image-placeholder">
+                      <span>Sem Imagem</span>
+                    </div>
+                  )}
+                  
+                  {/* Assumimos que a BD devolve disponivel_para_emprestimo (1 ou 0) */}
+                  <span className={`status-badge ${peca.disponivel_para_emprestimo ? 'disponivel' : 'emprestado'}`}>
+                    {peca.disponivel_para_emprestimo ? 'DISPONÍVEL' : 'EMPRESTADO'}
+                  </span>
+
+                  {/* Ações do dono: Só aparecem se o utilizador logado for o dono da peça */}
+                  {utilizador && utilizador.id_utilizador === peca.UTILIZADORid_utilizador && (
+                    <div className="owner-actions">
+                      <button className="action-btn edit-btn" title="Editar">✏️</button>
+                      <button className="action-btn delete-btn" title="Apagar">🗑️</button>
+                    </div>
                   )}
                 </div>
+
+                <div className="peca-content">
+                  <h3 className="peca-nome">{peca.nome}</h3>
+                  
+                  <div className="peca-tags">
+                    <span className="tag-estado">{peca.estado || peca.condicao}</span>
+                    {peca.tamanho && <span className="tag-tamanho">Tam: {peca.tamanho}</span>}
+                  </div>
+
+                  <p className="peca-owner">Disponibilizado por: <strong>{peca.UTILIZADOR_nome || peca.proprietario}</strong></p>
+
+                  <div className="peca-footer">
+                    {peca.disponivel_para_emprestimo ? (
+                      <>
+                        <span className="peca-price">Gratuito</span>
+                        <button className="btn-solicitar">Solicitar</button>
+                      </>
+                    ) : (
+                      <>
+                        <span className="peca-devolucao">
+                          Devolução: {peca.data_devolucao ? new Date(peca.data_devolucao).toLocaleDateString('pt-PT') : 'Por definir'}
+                        </span>
+                        <button className="btn-solicitar disabled" disabled>Indisponível</button>
+                      </>
+                    )}
+                  </div>
+                </div>
               </div>
-            </div>
-          ))}
+            ))
+          )}
         </div>
       </div>
 
