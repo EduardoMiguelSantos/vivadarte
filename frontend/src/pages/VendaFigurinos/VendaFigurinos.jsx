@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import './VendaFigurinos.css';
 import logoImg from '../../assets/logo.png'; // Ajusta o caminho se for diferente
 
-export default function VendaFigurinos({ irParaLanding }) {
+export default function VendaFigurinos({ irParaLanding, irParaEmprestimos }) {
   const [utilizador, setUtilizador] = useState(null);
   const [figurinos, setFigurinos] = useState([]);
   
@@ -305,8 +305,8 @@ export default function VendaFigurinos({ irParaLanding }) {
           <li><a href="#" onClick={(e) => { e.preventDefault(); if(irParaLanding) irParaLanding(); }}>Início</a></li>
           <li className="nav-separator">|</li>
           <li><a href="#" className="special-link">Agendar Coaching</a></li>
-          <li><a href="#" className="special-link">Empréstimos de peças</a></li>
-          <li><a href="#" className="special-link" style={{ color: 'var(--accent-gold)' }}>Venda de figurinos</a></li>
+          <li><a href="#" className="special-link" onClick={(e) => { e.preventDefault(); irParaEmprestimos(); }}>Empréstimos de peças</a></li>
+          <li><a href="#" className="special-link active">Venda de figurinos</a></li>
         </ul>
         <div className="nav-actions">
           {utilizador && (

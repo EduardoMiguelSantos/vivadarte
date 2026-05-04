@@ -51,11 +51,12 @@ exports.criarVendaCompleta = async (dados) => {
         requestPeca.input('id_utilizador', sql.Int, id_utilizador);
         requestPeca.input('categoria', sql.Int, 1); 
 
+        // AQUI ESTÁ A CORREÇÃO: Adicionado disponivel_para_emprestimo e o valor 0
         const resultPeca = await requestPeca.query(`
             INSERT INTO [vivadarte].[dbo].[PECA] 
-            (nome, tamanho, descricao, estado, disponivel_para_venda, UTILIZADORid_utilizador, CATEGORIA_PECAid_categoria_peca, data_registo)
+            (nome, tamanho, descricao, estado, disponivel_para_venda, disponivel_para_emprestimo, UTILIZADORid_utilizador, CATEGORIA_PECAid_categoria_peca, data_registo)
             OUTPUT INSERTED.id_peca
-            VALUES (@nome, @tamanho, @descricao, 'Novo', 1, @id_utilizador, @categoria, GETDATE())
+            VALUES (@nome, @tamanho, @descricao, 'Novo', 1, 0, @id_utilizador, @categoria, GETDATE())
         `);
         const id_peca = resultPeca.recordset[0].id_peca;
 
